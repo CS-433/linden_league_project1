@@ -5,7 +5,7 @@ from utils import plot_regression_1d
 
 def least_squares(y, tx):
     """
-    Computes the least squares solution to the linear regression problem with optional Ridge regularization.
+    Computes the least squares solution to the linear regression problem.
 
     Parameters:
     y (np.ndarray): Target values, shape (n_samples,)
