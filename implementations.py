@@ -14,7 +14,7 @@ def loss_mse(y, tx, w):
     Returns:
     float: Mean Squared Error loss
     """
-    return np.square(y - tx @ w).mean()
+    return 1/2 * np.square(y - tx @ w).mean()
 
 def compute_gradient_linreg(y, tx, w):
     """
