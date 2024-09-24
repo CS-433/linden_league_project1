@@ -6,6 +6,9 @@ def compute_gradient(y, tx, w):
 
 
 def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
+    """
+    Perform the given number of iterations of stochastic gradient descent for linear regression using square mean error as loss.
+    """
     ws = [initial_w]
     losses = []
     w = initial_w
@@ -31,6 +34,9 @@ def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
     return losses, ws
 
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
+    """
+    Perform the given number of iterations of gradient descent for linear regression using square mean error as loss.
+    """
     ws = [initial_w]
     losses = []
     w = initial_w
