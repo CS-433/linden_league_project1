@@ -40,11 +40,9 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     Perform the given number of iterations of gradient descent for linear regression using square mean error as loss.
     """
     ws = [initial_w]
-    losses = []
     w = initial_w
+    losses = [loss_mse(y, tx @ w)]
 
-    loss = loss_mse(y, tx @ w)
-    losses.append(loss)
     for n_iter in range(max_iters):
         g = compute_gradient(y, tx, w)
         w = w - gamma * g
@@ -59,4 +57,24 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
             )
         )
 
-    return losses, ws
+    return ws[-1], losses[-1]
+
+if __name__ == "__main__":
+    y = np.array([0.1, 0.3, 0.5])
+    tx = np.array([[2.3, 3.2],
+       [1. , 0.1],
+       [1.4, 2.3]])
+    w = np.array([0.413044, 0.875757])
+
+
+    w, loss = mean_squared_error_gd(
+            y, tx, w, 0, .5
+        )
+    
+    expected_loss = 2.959836
+
+    print("w ", w)
+    print("loss ", loss)
+    print("expected w ", w)
+    print("expected_loss ", expected_loss)
+    print(np.mean((y - (tx @ w))**2))
