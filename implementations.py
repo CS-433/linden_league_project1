@@ -7,7 +7,7 @@ def compute_gradient(y, tx, w):
     return -1/len(y) * np.transpose(tx) @ (y - tx @ w) 
 
 
-def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
+def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """
     Perform the given number of iterations of stochastic gradient descent for linear regression using square mean error as loss.
     """
@@ -15,7 +15,7 @@ def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
     losses = []
     w = initial_w
 
-    batches = batch_iter(y, tx, batch_size, max_iters)
+    batches = batch_iter(y, tx, 1, max_iters)
 
     for n_iter, batch in enumerate(batches):
         y_batch, xt_batch = batch
