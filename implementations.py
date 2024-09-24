@@ -1,4 +1,6 @@
 import numpy as np
+from losses import loss_mse
+
 def compute_gradient(y, tx, w):
     """Compute a gradient at w from a data sample (full sample, or a stochastic batch).
     """
@@ -18,7 +20,7 @@ def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
     for n_iter, batch in enumerate(batches):
         y_batch, xt_batch = batch
         g = compute_gradient(y_batch, xt_batch, w)
-        loss = compute_loss(y, tx, w)
+        loss = loss_mse(y, tx @ w)
         
         w = w - gamma * g
         ws.append(w)
@@ -42,7 +44,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     w = initial_w
     for n_iter in range(max_iters):
         g = compute_gradient(y, tx, w)
-        loss = compute_loss(y, tx, w)
+        loss = loss_mse(y, tx @ w)
         w = w - gamma * g
 
         # store w and loss
