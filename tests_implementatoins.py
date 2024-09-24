@@ -69,6 +69,5 @@ def ridge_regression_test():
         plot_regression_1d(tx, y, w_learned)
 
 
-
 if __name__ == "__main__":
     pass
