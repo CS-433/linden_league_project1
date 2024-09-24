@@ -106,3 +106,27 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
 
     return w, final_loss
 
+
+def ridge_regression(y, tx, lambda_):
+    """
+    Computes the least squares solution to the linear regression problem with Ridge regularization.
+
+    Parameters:
+    y (np.ndarray): Target values, shape (n_samples,)
+    tx (np.ndarray): Feature matrix, shape (n_samples, n_features)
+    lambda_ (float): Regularization parameter. Set to 0 for no regularization.
+
+    Returns:
+    w (np.ndarray): Optimal weights, shape (n_features,)
+    loss (float): Mean Squared Error loss
+    """
+    tx_t = tx.T
+    identity = np.eye(tx.shape[1])
+
+    # The bias should not be affected by regularization term
+    identity[0, 0] = 0
+    w = np.linalg.solve(tx_t @ tx + lambda_ * identity, tx_t @ y)
+
+    # Compute Mean Squared Error for the Loss
+    loss = np.square(y - tx @ w).mean()
+    return w, loss
