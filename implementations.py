@@ -42,10 +42,13 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     ws = [initial_w]
     losses = []
     w = initial_w
+
+    loss = loss_mse(y, tx @ w)
+    losses.append(loss)
     for n_iter in range(max_iters):
         g = compute_gradient(y, tx, w)
-        loss = loss_mse(y, tx @ w)
         w = w - gamma * g
+        loss = loss_mse(y, tx @ w)
 
         # store w and loss
         ws.append(w)
