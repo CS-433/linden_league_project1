@@ -1,6 +1,7 @@
 import numpy as np
 from losses import loss_mse
 from helpers import batch_iter
+from logistic_regression import sigmoid, log_reg_grad, log_reg_loss, logistic_regression
 
 def compute_gradient(y, tx, w):
     """Compute a gradient at w from a data sample (full sample, or a stochastic batch).
@@ -61,3 +62,47 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         )
 
     return ws[-1], losses[-1]
+
+def least_squares(y, tx):
+    """
+    Computes the least squares solution to the linear regression problem.
+
+    Parameters:
+    y (np.ndarray): Target values, shape (n_samples,)
+    tx (np.ndarray): Feature matrix, shape (n_samples, n_features)
+
+    Returns:
+    w (np.ndarray): Optimal weights, shape (n_features,)
+    loss (float): Mean Squared Error loss
+    """
+    tx_t = tx.T
+    w = np.linalg.solve(tx_t @ tx, tx_t @ y)
+
+    # Compute Mean Squared Error for the Loss
+    loss = np.square(y - tx @ w).mean()
+    return w, loss
+
+def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
+    """ Regularized logistic regression using gradient descent
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features
+        lambda_ : float : regularization strength (L_r = \lambda * ||w||^2)
+        initial_w : np.ndarray(D) : initial weights
+        max_iters : int : maximum number of iterations
+        gamma : float : step size
+
+    Returns:
+        w : np.ndarray(D) : final parameter vector
+        loss : float : final loss
+    """
+    w = initial_w
+    for _ in range(max_iters):
+        ### compute grad and update w
+        grad = log_reg_grad(y, tx, w) + 2 * lambda_ * w
+        w -= gamma * grad
+    final_loss = log_reg_loss(y, tx, w) # don't include the regularization term
+
+    return w, final_loss
+

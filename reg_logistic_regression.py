@@ -3,30 +3,6 @@ import numpy as np
 from logistic_regression import sigmoid, log_reg_grad, log_reg_loss, logistic_regression
 
 
-def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """ Regularized logistic regression using gradient descent
-
-    Parameters:
-        y : np.ndarray(N) : labels (0 or 1)
-        tx : np.ndarray(N, D) : features
-        lambda_ : float : regularization strength (L_r = \lambda * ||w||^2)
-        initial_w : np.ndarray(D) : initial weights
-        max_iters : int : maximum number of iterations
-        gamma : float : step size
-
-    Returns:
-        w : np.ndarray(D) : final parameter vector
-        loss : float : final loss
-    """
-    w = initial_w
-    for _ in range(max_iters):
-        ### compute grad and update w
-        grad = log_reg_grad(y, tx, w) + 2 * lambda_ * w
-        w -= gamma * grad
-    final_loss = log_reg_loss(y, tx, w) # don't include the regularization term
-
-    return w, final_loss
-
 
 
 """ Tests """
