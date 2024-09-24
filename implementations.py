@@ -2,6 +2,20 @@ import numpy as np
 from helpers import batch_iter
 from logistic_regression import sigmoid, log_reg_grad, log_reg_loss, logistic_regression
 
+
+def loss_mse(y, tx, w):
+    """Calculate the mean squared error loss.
+
+    Parameters:
+    y (np.ndarray): Target values, shape (n_samples,)
+    tx (np.ndarray): Feature matrix, shape (n_samples, n_features)
+    w (np.ndarray): Weights, shape (n_features,)
+
+    Returns:
+    float: Mean Squared Error loss
+    """
+    return np.square(y - tx @ w).mean()
+
 def compute_gradient_linreg(y, tx, w):
     """
     Calculate the gradient of the square mean error loss function of a linear regression model, with respect to the weights w.
