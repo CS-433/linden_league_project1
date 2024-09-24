@@ -4,7 +4,16 @@ from helpers import batch_iter
 from logistic_regression import sigmoid, log_reg_grad, log_reg_loss, logistic_regression
 
 def compute_gradient(y, tx, w):
-    """Compute a gradient at w from a data sample (full sample, or a stochastic batch).
+    """
+    Calculate the gradient of the square mean error loss function of a linear regression model, with respect to the weights w.
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features, including the constant feature
+        w : np.ndarray(D) : weights
+
+    Returns:
+        g: np.ndarray(D) : gradient of the loss with respect to w
     """
     return -1/len(y) * np.transpose(tx) @ (y - tx @ w) 
 
@@ -12,7 +21,19 @@ def compute_gradient(y, tx, w):
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """
     Perform the given number of iterations of stochastic gradient descent for linear regression using square mean error as loss.
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features, including the constant feature
+        initial_w : np.ndarray(D) : initial weights
+        max_iters : int : maximum number of iterations
+        gamma : float : step size
+
+    Returns:
+        w : np.ndarray(D) : final parameter vector
+        loss : float : final loss
     """
+
     ws = [initial_w]
     w = initial_w
 
@@ -42,6 +63,17 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     """
     Perform the given number of iterations of gradient descent for linear regression using square mean error as loss.
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features, including the constant feature
+        initial_w : np.ndarray(D) : initial weights
+        max_iters : int : maximum number of iterations
+        gamma : float : step size
+
+    Returns:
+        w : np.ndarray(D) : final parameter vector
+        loss : float : final loss
     """
     ws = [initial_w]
     w = initial_w
