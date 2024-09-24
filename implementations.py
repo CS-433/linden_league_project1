@@ -3,6 +3,7 @@ from losses import loss_mse
 from helpers import batch_iter
 from logistic_regression import sigmoid, log_reg_grad, log_reg_loss, logistic_regression
 
+
 def compute_gradient(y, tx, w):
     """
     Calculate the gradient of the square mean error loss function of a linear regression model, with respect to the weights w.
@@ -15,7 +16,7 @@ def compute_gradient(y, tx, w):
     Returns:
         g: np.ndarray(D) : gradient of the loss with respect to w
     """
-    return -1/len(y) * np.transpose(tx) @ (y - tx @ w) 
+    return -1 / len(y) * np.transpose(tx) @ (y - tx @ w)
 
 
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
@@ -44,14 +45,12 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     for n_iter, batch in enumerate(batches):
         y_batch, xt_batch = batch
         g = compute_gradient(y_batch, xt_batch, w)
-        
+
         w = w - gamma * g
         ws.append(w)
 
         loss = loss_mse(y, tx @ w)
         losses.append(loss)
-
-
 
         print(
             "SGD iter. {bi}/{ti}: loss={l}, w0={w0}, w1={w1}".format(
@@ -59,6 +58,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
             )
         )
     return ws[-1], losses[-1]
+
 
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     """
@@ -95,6 +95,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
 
     return ws[-1], losses[-1]
 
+
 def least_squares(y, tx):
     """
     Computes the least squares solution to the linear regression problem.
@@ -111,11 +112,12 @@ def least_squares(y, tx):
     w = np.linalg.solve(tx_t @ tx, tx_t @ y)
 
     # Compute Mean Squared Error for the Loss
-    loss = 1/2 * np.square(y - tx @ w).mean()
+    loss = 1 / 2 * np.square(y - tx @ w).mean()
     return w, loss
 
+
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """ Regularized logistic regression using gradient descent
+    """Regularized logistic regression using gradient descent
 
     Parameters:
         y : np.ndarray(N) : labels (0 or 1)
@@ -134,7 +136,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         ### compute grad and update w
         grad = log_reg_grad(y, tx, w) + 2 * lambda_ * w
         w -= gamma * grad
-    final_loss = log_reg_loss(y, tx, w) # don't include the regularization term
+    final_loss = log_reg_loss(y, tx, w)  # don't include the regularization term
 
     return w, final_loss
 
