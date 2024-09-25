@@ -1,4 +1,7 @@
-data/
+*.pdf
+
+data_raw/*.csv
+data_clean/**
 results/
 
 # Byte-compiled / optimized / DLL files
