@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils import plot_regression_1d
-from implementations import *
+from implementations import *https://github.com/keko24/ml-first-project/pull/4
 
 
 def test_least_squares():

@@ -46,32 +46,14 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         w : np.ndarray(D) : final parameter vector
         loss : float : final loss
     """
-
-    ws = [initial_w]
     w = initial_w
-
-    losses = [loss_mse(y, tx, w)]
-
     batches = batch_iter(y, tx, 1, max_iters)
 
     for n_iter, batch in enumerate(batches):
         y_batch, xt_batch = batch
         g = compute_gradient_linreg(y_batch, xt_batch, w)
-        
         w = w - gamma * g
-        ws.append(w)
-
-        loss = loss_mse(y, tx, w)
-        losses.append(loss)
-
-
-
-        print(
-            "SGD iter. {bi}/{ti}: loss={l}, w0={w0}, w1={w1}".format(
-                bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]
-            )
-        )
-    return ws[-1], losses[-1]
+    return w, loss_mse(y, tx, w)
 
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     """
@@ -88,25 +70,12 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         w : np.ndarray(D) : final parameter vector
         loss : float : final loss
     """
-    ws = [initial_w]
     w = initial_w
-    losses = [loss_mse(y, tx, w)]
 
     for n_iter in range(max_iters):
         g = compute_gradient_linreg(y, tx, w)
         w = w - gamma * g
-        loss = loss_mse(y, tx, w)
-
-        # store w and loss
-        ws.append(w)
-        losses.append(loss)
-        print(
-            "GD iter. {bi}/{ti}: loss={l}, w0={w0}, w1={w1}".format(
-                bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]
-            )
-        )
-
-    return ws[-1], losses[-1]
+    return w, loss_mse(y, tx, w)
 
 def least_squares(y, tx):
     """
@@ -124,8 +93,7 @@ def least_squares(y, tx):
     w = np.linalg.solve(tx_t @ tx, tx_t @ y)
 
     # Compute Mean Squared Error for the Loss
-    loss = 1/2 * np.square(y - tx @ w).mean()
-    return w, loss
+    return w, loss_mse(y, tx, w)
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     """ Regularized logistic regression using gradient descent
