@@ -134,7 +134,7 @@ def ridge_regression(y, tx, lambda_):
     loss (float): Mean Squared Error loss
     """
     n, d = tx.shape
-    return np.linalg.solve(tx.T @ tx + lambda_ * 2*n * np.eye(d), tx.T @ y)
+    w = np.linalg.solve(tx.T @ tx + lambda_ * 2*n * np.eye(d), tx.T @ y)
 
     # Compute Mean Squared Error for the Loss
     loss = np.square(y - tx @ w).mean()
