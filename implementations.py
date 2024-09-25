@@ -133,12 +133,8 @@ def ridge_regression(y, tx, lambda_):
     w (np.ndarray): Optimal weights, shape (n_features,)
     loss (float): Mean Squared Error loss
     """
-    tx_t = tx.T
-    identity = np.eye(tx.shape[1])
-
-    # The bias should not be affected by regularization term
-    identity[0, 0] = 0
-    w = np.linalg.solve(tx_t @ tx + 2*tx.shape[0]*lambda_ * identity, tx_t @ y)
+    n, d = tx.shape
+    return np.linalg.solve(tx.T @ tx + lambda_ * 2*n * np.eye(d), tx.T @ y)
 
     # Compute Mean Squared Error for the Loss
     loss = np.square(y - tx @ w).mean()
