@@ -138,7 +138,7 @@ def ridge_regression(y, tx, lambda_):
 
     # The bias should not be affected by regularization term
     identity[0, 0] = 0
-    w = np.linalg.solve(tx_t @ tx + 2*n*lambda_ * identity, tx_t @ y)
+    w = np.linalg.solve(tx_t @ tx + 2*tx.shape[0]*lambda_ * identity, tx_t @ y)
 
     # Compute Mean Squared Error for the Loss
     loss = np.square(y - tx @ w).mean()
