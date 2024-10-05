@@ -1,4 +1,5 @@
 import os
+import random
 import itertools
 import datetime
 import dateutil.tz
@@ -62,11 +63,14 @@ def f1(y_true, y_pred):
     return f1
 
 
-def get_cross_val_scores(model, X, y, k_folds=5, scoring_fn=accuracy):
+def get_cross_val_scores(model, X, y, k_folds=5, scoring_fn=accuracy, shuffle=True):
     scores = []
     for fold_idx in range(k_folds):
         ### create current fold mask
-        mask = np.arange(X.shape[0]) % k_folds == fold_idx
+        if shuffle:
+            mask = np.random.permutation(X.shape[0]) % k_folds == fold_idx
+        else:
+            mask = np.arange(X.shape[0]) % k_folds == fold_idx
         X_train, y_train = X[~mask], y[~mask]
         X_test, y_test = X[mask], y[mask]
 
@@ -77,10 +81,17 @@ def get_cross_val_scores(model, X, y, k_folds=5, scoring_fn=accuracy):
         scores.append(score)
     return np.array(scores)
 
+
 def prep_hyperparam_search(hyperparam_search):
     hp_names, hp_vals = zip(*hyperparam_search.items())
     return [dict(zip(hp_names, v)) for v in itertools.product(*hp_vals)]
 
+
 def now_str():
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     return now.strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def seed_all(seed):
+    random.seed(seed)
+    np.random.seed(seed)
