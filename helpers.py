@@ -134,4 +134,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         yield y[start_index:end_index], tx[start_index:end_index]
 
 def load_clean_data():
-    return tuple(np.load(os.path.join(CLEAN_DATA_PATH, f"{name}.npy")) for name in ["x_train", "x_test", "y_train"])
+    return {
+        name: np.load(os.path.join(CLEAN_DATA_PATH, f"{name}.npy"))
+        for name in ["x", "x_final", "y", "ids", "ids_final"]
+    }
