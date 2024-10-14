@@ -1,8 +1,9 @@
 """Some helper functions for project 1."""
 
 import csv
-import numpy as np
 import os
+
+import numpy as np
 
 RAW_DATA_PATH = 'data_raw'
 CLEAN_DATA_PATH = 'data_clean'
@@ -23,7 +24,14 @@ def load_csv_data(data_path, sub_sample=False):
         y_train (np.array): labels for training data in format (-1,1)
         train_ids (np.array): ids of training data
         test_ids (np.array): ids of test data
+        col_indices (dict): mapping of column name to idx
     """
+    # Extract the header of the csv
+    with open(os.path.join(data_path, "x_train.csv"), "r") as f:
+        header_line = f.readline()
+        header = header_line.split(",")[1:]
+        col_indices = {col: idx for idx, col in enumerate(header)}
+
     y_train = np.genfromtxt(
         os.path.join(data_path, "y_train.csv"),
         delimiter=",",
@@ -49,7 +57,7 @@ def load_csv_data(data_path, sub_sample=False):
         x_train = x_train[::50]
         train_ids = train_ids[::50]
 
-    return x_train, x_test, y_train, train_ids, test_ids
+    return x_train, x_test, y_train, train_ids, test_ids, col_indices
 
 
 def create_csv_submission(ids, y_pred, name):
