@@ -24,12 +24,13 @@ def load_csv_data(data_path, sub_sample=False):
         y_train (np.array): labels for training data in format (-1,1)
         train_ids (np.array): ids of training data
         test_ids (np.array): ids of test data
+        col_indices (dict): mapping of column name to idx
     """
+    # Extract the header of the csv
     with open(os.path.join(data_path, "x_train.csv"), "r") as f:
         header_line = f.readline()
         header = header_line.split(",")[1:]
         col_indices = {col: idx for idx, col in enumerate(header)}
-
 
     y_train = np.genfromtxt(
         os.path.join(data_path, "y_train.csv"),

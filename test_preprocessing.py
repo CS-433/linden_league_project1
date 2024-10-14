@@ -1,20 +1,24 @@
-import os
+import unittest
 
 from data_preprocessing import clean_data
 from helpers import load_csv_data
 
+RAW_DATA_PATH = "data_raw"
 
-def main():
-    data_path = os.path.join("data")
-    x_train, x_test, y_train, train_ids, test_ids, col_indices = load_csv_data(
-        data_path
-    )
-    print(x_train.shape)
-    print(x_test.shape)
-    x_train, x_test = clean_data(x_train, x_test, col_indices)
-    print(x_train.shape)
-    print(x_test.shape)
+
+class TestImplementations(unittest.TestCase):
+    def test_data_preprocessing(self):
+        x_train, x_test, y_train, train_ids, test_ids, col_indices = (
+            load_csv_data(RAW_DATA_PATH)
+        )
+
+        assert x_train.shape == (328135, 321)
+        assert x_test.shape == (109379, 321)
+
+        x_train, x_test, col_indices = clean_data(x_train, x_test, col_indices)
+        assert x_train.shape == (328135, 86)
+        assert x_test.shape == (109379, 86)
 
 
 if __name__ == "__main__":
-    main()
+    unittest.main()
