@@ -1,4 +1,7 @@
+import os
 import numpy as np
+
+from helpers import load_csv_data
 
 
 def get_columns(split=False):
@@ -205,4 +208,28 @@ def clean_data(X_train, X_test, col_indices):
     X_test_array, _ = process_dataset(X_test, stats)
 
     return X_train_array, X_test_array
+
+
+RAW_DATA_PATH = "data_raw"
+CLEAN_DATA_PATH = "data_clean"
+def main():
+    x_train, x_test, y_train, train_ids, test_ids, col_indices = load_csv_data(
+        RAW_DATA_PATH
+    )
+
+    print("Before cleaning")
+    print("x_train: ", x_train.shape)
+    print("x_test: ", x_test.shape)
+    x_train, x_test = clean_data(x_train, x_test, col_indices)
+    print("After cleaning")
+    print("x_train: ", x_train.shape)
+    print("x_test: ", x_test.shape)
+
+    for data, name in zip([x_train, x_test, y_train, train_ids, test_ids], ['x_train', 'x_test', 'y_train', 'train_ids', 'test_ids']):
+        path = os.path.join(CLEAN_DATA_PATH, name)
+        np.save(os.path.join(CLEAN_DATA_PATH, name + '.npy'), data)
+
+
+if __name__ == "__main__":
+    main()
 
