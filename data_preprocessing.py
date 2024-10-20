@@ -1,8 +1,10 @@
 import os
 import numpy as np
+import pickle
 
 from columns import get_binary_categorical_columns, get_columns
 from helpers import load_csv_data
+from models import PCA
 
 
 ### Define paths
@@ -284,10 +286,174 @@ def compute_statistics(X_train, col_indices, numerical_columns, categorical_colu
     return stats
 
 def load_clean_data(data_path=CLEAN_DATA_PATH):
+    """
+    Load cleaned data from the specified path.
+
+    Args:
+        data_path (str): path to the cleaned data.
+
+    Returns:
+        dict: dictionary containing the loaded data.
+    """
     return {
         name: np.load(os.path.join(data_path, f"{name}.npy"))
         for name in ["x", "x_final", "y", "ids", "ids_final"]
     }
+
+def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max_frac_of_nan=0.8, min_explained_variance=0.7):
+    """
+    Apply PCA on the remaining columns of the data.
+
+    Args:
+        x : np.ndarray(N, D) : data matrix
+        x_final : np.ndarray(N, D) : final data matrix
+        col_idx_mapping : dict : mapping of column names to indices
+        cols_already_used : set : columns already used in the model
+        max_frac_of_nan : float : maximum fraction of nans in a column
+        min_explained_variance : float : minimum explained variance by the PCA
+
+    Returns:
+        x_pca : np.ndarray(N, D) : transformed data matrix
+        x_final_pca : np.ndarray(N, D) : transformed final data matrix
+        cols_for_pca_map : dict : mapping of column names to indices for PCA transformed data
+    """
+    ### get subset of columns excluded
+    cols_excluded = set(col_idx_mapping.keys()) - cols_already_used
+    col_idxs_for_pca = []
+    for i, (col, idx) in enumerate(col_idx_mapping.items()):
+        ### also filter out columns with too many nans
+        if col in cols_excluded and np.isnan(x[:, idx]).mean() < max_frac_of_nan:
+            col_idxs_for_pca.append(idx)
+    x_pca = x[:, col_idxs_for_pca]
+    x_final_pca = x_final[:, col_idxs_for_pca]
+
+    ### fill nans with mean from train
+    for col_idx in range(x_pca.shape[1]):
+        mean_train = np.nanmean(x_pca[:, col_idx])
+        x_pca[np.isnan(x_pca[:, col_idx]), col_idx] = mean_train
+        x_final_pca[np.isnan(x_final_pca[:, col_idx]), col_idx] = mean_train
+
+    ### transform all the data using PCA
+    pca = PCA(n_components=None, min_explained_variance=min_explained_variance).fit(x_pca)
+    x_pca, x_final_pca = pca.transform(x_pca), pca.transform(x_final_pca)
+    cols_for_pca_map = {f"pca_{i}": i for i in range(x_pca.shape[1])}
+
+    return x_pca, x_final_pca, cols_for_pca_map
+
+def get_all_data(cfg, pca_kwargs=None, verbose=True):
+    """
+    Load and clean data, apply PCA if specified, and save the processed data.
+
+    Args:
+        cfg : dict : configuration dictionary
+        pca_kwargs : dict : kwargs for PCA
+        verbose : bool : verbosity
+
+    Returns:
+        x : np.ndarray(N, D) : training data
+        x_final : np.ndarray(N, D) : final data
+        y : np.ndarray(N) : labels
+        ids : np.ndarray(N) : ids of training data
+        ids_final : np.ndarray(N) : ids of final data
+        col_idx_map : dict : mapping of column names to indices
+        cleaned_col_idx_map : dict : mapping of column names to indices for cleaned data
+    """
+    if cfg["allow_load_clean_data"]:
+        ### load already cleaned data
+        try:
+            if verbose: print("Loading clean data...")
+            x, x_final, y, ids, ids_final = load_clean_data(data_path=cfg["clean_data_path"]).values()
+            with open(os.path.join(cfg["clean_data_path"], "col_idx_map.pkl"), "rb") as f:
+                col_idx_map = pickle.load(f)
+            with open(os.path.join(cfg["clean_data_path"], "cleaned_col_idx_map.pkl"), "rb") as f:
+                cleaned_col_idx_map = pickle.load(f)
+            if verbose: print(f"  Final data: {x.shape=}, {x_final.shape=}")
+            return x, x_final, y, ids, ids_final, col_idx_map, cleaned_col_idx_map
+        except FileNotFoundError:
+            if verbose: print("Clean data not found. Loading raw data and cleaning...")
+
+    ### load and clean data
+    if verbose: print("Loading raw data...")
+    npy_loaded = load_npy_data(cfg["raw_data_path"])
+    if npy_loaded:
+        ### load data from npy
+        x, x_final, y, ids, ids_final, col_idx_map = npy_loaded
+    else:
+        ### load data from csv
+        x, x_final, y, ids, ids_final, col_idx_map = load_csv_data(cfg["raw_data_path"])
+    if verbose: print(f"  Raw data: {x.shape=}, {x_final.shape=}")
+    if verbose: print("Cleaning data...")
+    cleaned_x, cleaned_x_final, cleaned_col_idx_map = clean_data(x, x_final, col_idx_map)
+    if verbose: print(f"  Clean data: {cleaned_x.shape=}, {cleaned_x_final.shape=}")
+
+    ### apply PCA on the remaining columns
+    if pca_kwargs is not None:
+        if verbose: print("  Applying PCA on the remaining columns...")
+        pca_x, pca_x_final, pca_col_idx_map = get_pca_transformed_data(x=x, x_final=x_final,
+            col_idx_mapping=col_idx_map, cols_already_used=cleaned_col_idx_map.keys(), **pca_kwargs)
+        if verbose: print(f"  PCA data: {pca_x.shape=}, {pca_x_final.shape=}")
+        x = np.concatenate([cleaned_x, pca_x], axis=1)
+        x_final = np.concatenate([cleaned_x_final, pca_x_final], axis=1)
+        for k in pca_col_idx_map: # update the column index mapping
+            pca_col_idx_map[k] += len(cleaned_col_idx_map)
+        cleaned_col_idx_map.update(pca_col_idx_map)
+    else:
+        x, x_final = cleaned_x, cleaned_x_final
+    if verbose: print(f"  Preprocessed data: {x.shape=}, {x_final.shape=}")
+
+    ### remap labels to 0, 1 from -1, 1
+    if cfg["remap_labels_to_01"]:
+        y = (y + 1) // 2
+
+    ### save processed data used for training
+    if verbose: print("Saving clean data...")
+    os.makedirs(cfg["clean_data_path"], exist_ok=True)
+    for data, name in zip(
+        [x, x_final, y, ids, ids_final],
+        ['x', 'x_final', 'y', 'ids', 'ids_final']
+    ):
+        np.save(os.path.join(cfg["clean_data_path"], name + '.npy'), data)
+    with open(os.path.join(cfg["clean_data_path"], "col_idx_map.pkl"), "wb") as f:
+        pickle.dump(col_idx_map, f)
+    with open(os.path.join(cfg["clean_data_path"], "cleaned_col_idx_map.pkl"), "wb") as f:
+        pickle.dump(cleaned_col_idx_map, f)
+
+    return x, x_final, y, ids, ids_final, col_idx_map, cleaned_col_idx_map
+
+def resave_csv_as_npy(data_path):
+    """
+    Resave the data in the specified path as numpy arrays.
+
+    Args:
+        data_path (str): path to the data.
+    """
+    x, x_final, y, ids, ids_final, col_indices = load_csv_data(data_path)
+    for data, name in zip(
+        [x, x_final, y, ids, ids_final],
+        ['x', 'x_final', 'y', 'ids', 'ids_final']
+    ):
+        np.save(os.path.join(data_path, name + '.npy'), data)
+
+    with open(os.path.join(data_path, "col_indices.pkl"), "wb") as f:
+        pickle.dump(col_indices, f)
+
+def load_npy_data(data_path):
+    """
+    Load data from the specified path.
+
+    Args:
+        data_path (str): path to the data.
+
+    Returns:
+        tuple: tuple containing the loaded data (x, x_final, y, ids, ids_final, col_indices).
+    """
+    try:
+        with open(os.path.join(data_path, "col_indices.pkl"), "rb") as f:
+            col_indices = pickle.load(f)
+        data = [np.load(os.path.join(data_path, f"{name}.npy")) for name in ["x", "x_final", "y", "ids", "ids_final"]]
+        return *data, col_indices
+    except FileNotFoundError:
+        return None
 
 def main():
     """
