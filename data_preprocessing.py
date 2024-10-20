@@ -1,9 +1,13 @@
 import os
-
 import numpy as np
 
 from columns import get_binary_categorical_columns, get_columns
 from helpers import load_csv_data
+
+
+### Define paths
+RAW_DATA_PATH = "data_raw"
+CLEAN_DATA_PATH = "data_clean"
 
 
 def compute_mode(arr):
@@ -279,9 +283,11 @@ def compute_statistics(X_train, col_indices, numerical_columns, categorical_colu
             stats[col]['unique_values'] = np.unique(arr[~np.isnan(arr)])
     return stats
 
-# Define paths
-RAW_DATA_PATH = "data_raw"
-CLEAN_DATA_PATH = "data_clean"
+def load_clean_data(data_path=CLEAN_DATA_PATH):
+    return {
+        name: np.load(os.path.join(data_path, f"{name}.npy"))
+        for name in ["x", "x_final", "y", "ids", "ids_final"]
+    }
 
 def main():
     """
