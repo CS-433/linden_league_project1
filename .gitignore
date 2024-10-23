@@ -1,6 +1,7 @@
 *.pdf
 
 data_raw/*.csv
+data_transformed/**
 data_clean/**
 results/
 
