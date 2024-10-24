@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from models import SVM, KNN
 import os
-from helpers import load_csv_data, create_csv_submission_without_ids
+from helpers import load_csv_data, create_csv_submission_without_ids, load_clean_data
 
 class SVMTest(unittest.TestCase):
     def test_svm(self):

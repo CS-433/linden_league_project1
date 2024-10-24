@@ -142,3 +142,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True, x_first=False):
         else:
             yield y[start_index:end_index], tx[start_index:end_index]
 
+
+def create_csv_submission_without_ids(y_pred, name):
+    test_ids = load_csv_data(RAW_DATA_PATH)[4]
+    create_csv_submission(test_ids, y_pred, name)
