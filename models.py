@@ -2,6 +2,7 @@ import numpy as np
 from functools import partial
 from helpers import batch_iter
 from utils import NegFn
+from collections import Counter
 
 
 class LogisticRegression:
@@ -850,3 +851,29 @@ class SVM:
             y_pred : np.ndarray(N) : predicted labels
         """
         return (x @ self.w > 0).astype(int)
+
+class KNN:
+    def __init__(self, k = 5):
+        self.k = k
+    
+    def fit(self, x, y):
+        self.train_x = x
+        self.train_y = y
+
+    def knn(self, x):
+        square_distances = np.sum((self.train_x - x[np.newaxis, :])**2, axis=1)
+        return np.argpartition(square_distances, self.k)[:self.k]
+
+
+    def predict(self, x):
+        closest = self.knn(x)
+        counter = Counter(self.train_y[closest])
+        mode = max(counter, key=counter.get)
+        return mode
+
+
+    def predict_all(self, x):
+        return np.array([self.predict(xi) for xi in x])
+
+
+
