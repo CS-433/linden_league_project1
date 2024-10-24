@@ -5,8 +5,6 @@ import os
 
 import numpy as np
 
-RAW_DATA_PATH = 'data_raw'
-CLEAN_DATA_PATH = 'data_clean'
 
 
 def load_csv_data(data_path, sub_sample=False):
@@ -82,7 +80,7 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({"Id": int(r1), "Prediction": int(r2)})
 
-def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
+def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True, x_first=False):
     """
     Generate a minibatch iterator for a dataset.
     Takes as input two iterables (here the output desired values 'y' and the input data 'tx')
@@ -139,10 +137,8 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         end_index = (
             start_index + batch_size
         )  # The first data point of the following batch
-        yield y[start_index:end_index], tx[start_index:end_index]
+        if x_first:
+            yield tx[start_index:end_index], y[start_index:end_index]
+        else:
+            yield y[start_index:end_index], tx[start_index:end_index]
 
-def load_clean_data():
-    return {
-        name: np.load(os.path.join(CLEAN_DATA_PATH, f"{name}.npy"))
-        for name in ["x", "x_final", "y", "ids", "ids_final"]
-    }
