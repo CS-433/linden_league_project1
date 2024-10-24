@@ -5,8 +5,8 @@ import os
 
 import numpy as np
 
-RAW_DATA_PATH = 'data_raw'
-CLEAN_DATA_PATH = 'data_clean'
+RAW_DATA_PATH = "data_raw"
+CLEAN_DATA_PATH = "data_clean"
 
 
 def load_csv_data(data_path, sub_sample=False):
@@ -29,8 +29,8 @@ def load_csv_data(data_path, sub_sample=False):
     # Extract the header of the csv
     with open(os.path.join(data_path, "x_train.csv"), "r") as f:
         header_line = f.readline()
-        header = header_line.split(",")[1:]
-        col_indices = {col: idx for idx, col in enumerate(header)}
+        columns = header_line.split(",")[1:]
+        col_indices = {col.strip(): idx for idx, col in enumerate(columns)}
 
     y_train = np.genfromtxt(
         os.path.join(data_path, "y_train.csv"),
@@ -82,6 +82,7 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({"Id": int(r1), "Prediction": int(r2)})
 
+
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
     Generate a minibatch iterator for a dataset.
@@ -116,7 +117,9 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         <DO-SOMETHING>
     """
     data_size = len(y)  # NUmber of data points.
-    batch_size = min(data_size, batch_size)  # Limit the possible size of the batch.
+    batch_size = min(
+        data_size, batch_size
+    )  # Limit the possible size of the batch.
     max_batches = int(
         data_size / batch_size
     )  # The maximum amount of non-overlapping batches that can be extracted from the data.
@@ -132,7 +135,10 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
             idxs += np.random.randint(remainder + 1, size=num_batches)
     else:
         # If no shuffle is done, the array of indexes is circular.
-        idxs = np.array([i % max_batches for i in range(num_batches)]) * batch_size
+        idxs = (
+            np.array([i % max_batches for i in range(num_batches)])
+            * batch_size
+        )
 
     for start in idxs:
         start_index = start  # The first data point of the batch
@@ -140,6 +146,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
             start_index + batch_size
         )  # The first data point of the following batch
         yield y[start_index:end_index], tx[start_index:end_index]
+
 
 def load_clean_data():
     return {

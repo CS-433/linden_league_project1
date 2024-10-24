@@ -32,16 +32,15 @@ def map_columns(X, col_indices):
         "Not asked",
     ]
     for col, idx in col_indices.items():
-        if col not in data_format:
-            continue
-
         for value, description in data_format[col].items():
             arr = X[:, idx]
 
             if description in zero_values:
+                print("Zeros: ", col)
                 mask = np.isin(arr, [value])
                 X[:, idx] = np.where(mask, 0, arr)
             elif description in missing_values:
+                print("Missing: ", col)
                 mask = np.isin(arr, [value])
                 X[:, idx] = np.where(mask, np.nan, arr)
 
