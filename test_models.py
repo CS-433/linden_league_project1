@@ -3,6 +3,7 @@ import numpy as np
 from models import SVM, KNN
 import os
 from helpers import load_csv_data, create_csv_submission_without_ids, load_clean_data
+from run import cfg
 
 class SVMTest(unittest.TestCase):
     def test_svm(self):
@@ -11,7 +12,7 @@ class SVMTest(unittest.TestCase):
         svm = SVM()
         svm.fit(x, y)
         
-        self.assertEquals(svm.predict(np.array([0,0])), 0)
+        self.assertEqual(svm.predict(np.array([0,0])), 0)
 
 class KNNTest(unittest.TestCase):
     def test_nearest(self):
@@ -83,8 +84,10 @@ class KNNTest(unittest.TestCase):
         if not os.path.exists(SAVE_DIR):
             os.makedirs(SAVE_DIR)
 
-        x_train, x_test, y_train = load_clean_data()
+        x_train, x_test, y_train = load_clean_data(cfg["clean_data_path"])
         one_percent = int(len(x_test) / 100) 
+        # Only take the fist X points of the training set, otherwise the test takes very long.
+        x_train, y_train = x_train[:1000], y_train[:1000]
 
         model = KNN(k)
         model.fit(x_train, y_train)
@@ -110,10 +113,10 @@ class KNNTest(unittest.TestCase):
             i += 1
 
         filename = os.path.join(SAVE_DIR, f"{k}.{len(x_test)}.csv")
-        create_csv_submission_without_ids(y_pred, filename)
+        create_csv_submission_without_ids(cfg["raw_data_path"], y_pred, filename)
 
     def test_one(self):
-        x_train, _, y_train = load_clean_data()
+        x_train, _, y_train = load_clean_data(cfg["clean_data_path"])
         x_train_unique, unique_idx = np.unique(x_train, axis=0, return_index=True)
         y_train_unique = y_train[unique_idx]
         print("Total points: ", len(x_train))

@@ -143,6 +143,9 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True, x_first=False):
             yield y[start_index:end_index], tx[start_index:end_index]
 
 
-def create_csv_submission_without_ids(y_pred, name):
-    test_ids = load_csv_data(RAW_DATA_PATH)[4]
+def create_csv_submission_without_ids(raw_data_path, y_pred, name):
+    test_ids = load_csv_data(raw_data_path)[4]
     create_csv_submission(test_ids, y_pred, name)
+
+def load_clean_data(data_path):
+    return tuple(np.load(os.path.join(data_path, f"{name}.npy")) for name in ["x_train", "x_test", "y_train"])
