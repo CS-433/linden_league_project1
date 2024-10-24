@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 from copy import deepcopy
 
-from models import LogisticRegression, DecisionTreeBinaryClassifier
+from models import LogisticRegression, DecisionTreeBinaryClassifier, SVM
 from data_preprocessing import get_all_data, resave_csv_as_npy
 from helpers import create_csv_submission
 from utils import split_data, get_cross_val_scores, prep_hyperparam_search, now_str, accuracy, f1, seed_all
@@ -13,7 +13,7 @@ from utils import split_data, get_cross_val_scores, prep_hyperparam_search, now_
 cfg = {
     "raw_data_path": "data_raw",
     "clean_data_path": "data_clean",
-    "allow_load_clean_data": False,
+    "allow_load_clean_data": True,
     "remap_labels_to_01": True,
     "seed": 0,
     "scoring_fn": f1,
@@ -24,7 +24,7 @@ cfg = {
             "shuffle": True,
         },
         # "holdout": {
-        #     "split_frac": 0.2,
+        #     "split_frac": 0.8,
         #     "seed": 0,
         # },
     },
@@ -36,36 +36,43 @@ if cfg["train"].get("cv", None) is not None:
 runs = {
     "data": {
         "No PCA": None,
-        "PCA var > 0.4, nan < 0.4": {"max_frac_of_nan": 0.4, "min_explained_variance": 0.4},
-        "PCA var > 0.7, nan < 0.4": {"max_frac_of_nan": 0.4, "min_explained_variance": 0.7},
-        "PCA var > 0.95, nan < 0.4": {"max_frac_of_nan": 0.4, "min_explained_variance": 0.95},
-        "PCA var > 0.4, nan < 0.8": {"max_frac_of_nan": 0.8, "min_explained_variance": 0.4},
-        "PCA var > 0.7, nan < 0.8": {"max_frac_of_nan": 0.8, "min_explained_variance": 0.7},
-        "PCA var > 0.95, nan < 0.8": {"max_frac_of_nan": 0.8, "min_explained_variance": 0.95},
+        # "PCA var > 0.4, nan < 0.4": {"max_frac_of_nan": 0.4, "min_explained_variance": 0.4},
+        # "PCA var > 0.7, nan < 0.4": {"max_frac_of_nan": 0.4, "min_explained_variance": 0.7},
+        # "PCA var > 0.95, nan < 0.4": {"max_frac_of_nan": 0.4, "min_explained_variance": 0.95},
+        # "PCA var > 0.4, nan < 0.8": {"max_frac_of_nan": 0.8, "min_explained_variance": 0.4},
+        # "PCA var > 0.7, nan < 0.8": {"max_frac_of_nan": 0.8, "min_explained_variance": 0.7},
+        # "PCA var > 0.95, nan < 0.8": {"max_frac_of_nan": 0.8, "min_explained_variance": 0.95},
     },
     "models": {
-        "Logistic Regression": {
-            "model_cls": LogisticRegression,
+        # "Logistic Regression": {
+        #     "model_cls": LogisticRegression,
+        #     "hyperparam_search": {
+        #         "gamma": [None],
+        #         "use_line_search": [True],
+        #         "optim_algo": ["lbfgs"],
+        #         "optim_kwargs": [{"epochs": 1}, {"epochs": 10}],
+        #         "class_weights": [{0: 1, 1: 1}, {0: 1, 1: 2}, {0: 1, 1: 4}],
+        #         "reg_mul": [0, 1e-2, 1e-4],
+        #         "verbose": [False],
+        #     },
+        # },
+        # "Decision Tree": {
+        #     "model_cls": DecisionTreeBinaryClassifier,
+        #     "hyperparam_search": {
+        #         "max_depth": [3, 5],
+        #         "min_samples_split": [5],
+        #         "criterion": ["gini"],
+        #         "class_weights": [{0: 1, 1: 1}, {0: 1, 1: 4}],
+        #         "eval_max_n_thresholds_per_split": [4],
+        #     },
+        # }
+        "SVM": {
+            "model_cls": SVM,
             "hyperparam_search": {
-                "gamma": [None],
-                "use_line_search": [True],
-                "optim_algo": ["lbfgs"],
-                "optim_kwargs": [{"epochs": 1}, {"epochs": 10}],
-                "class_weights": [{0: 1, 1: 1}, {0: 1, 1: 2}, {0: 1, 1: 4}],
-                "reg_mul": [0, 1e-2, 1e-4],
-                "verbose": [False],
-            },
+                "_lambda": [.001, .005, .01,],
+                "class_weights": [{0: 1, 1: i} for i in [2, 4, 6, 10]],
+            }
         },
-        "Decision Tree": {
-            "model_cls": DecisionTreeBinaryClassifier,
-            "hyperparam_search": {
-                "max_depth": [3, 5],
-                "min_samples_split": [5],
-                "criterion": ["gini"],
-                "class_weights": [{0: 1, 1: 1}, {0: 1, 1: 4}],
-                "eval_max_n_thresholds_per_split": [4],
-            },
-        }
     }
 }
 

@@ -764,3 +764,89 @@ class PCA:
 
         ### project the data onto the principal components
         return x @ self.components_
+
+class SVM:
+    """
+    Support Vector Machine (SVM) binary classifier
+
+    Parameters:
+        _lambda (float) : regularization parameter
+        max_iters (int) : maximum number of iterations
+        gamma (float) : step size
+        class_weights (dict) : class weights as {class: weight}
+    """
+    def __init__(self, _lambda=0.1, max_iters=10_000, gamma=.01, class_weights = {0: 1, 1: 4}):
+        self._lambda = _lambda
+        self.max_iters = max_iters
+        self.gamma = gamma
+        self.class_weights = class_weights
+    def calculate_coordinate_update(self, x, y, alpha, w, n):
+        """compute a coordinate update (closed form) for coordinate n.
+
+        Args:
+            y: the corresponding +1 or -1 labels, shape = (num_examples)
+            X: the dataset matrix, shape = (num_examples, num_features)
+            lambda_: positive scalar number
+            alpha: vector of dual coordinates, shape = (num_examples)
+            w: vector of primal parameters, shape = (num_features)
+            n: the coordinate to be updated
+
+        Returns:
+            w: updated vector of primal parameters, shape = (num_features)
+            alpha: updated vector of dual parameters, shape = (num_examples)
+
+        >>> y_test = np.array([1, -1])
+        >>> x_test = np.array([[1., 2., 3.], [4., 5., 6.]])
+        >>> w_test = np.array([-0.3, -0.3, -0.3])
+        >>> alpha_test = np.array([0.1, 0.1])
+        >>> calculate_coordinate_update(y_test, x_test, 1, alpha_test, w_test, 0)
+        (array([-0.1,  0.1,  0.3]), array([0.5, 0.1]))
+        """
+        # calculate the update of coordinate at index=n.
+        N = y.size
+        x_n, y_n = x[n], y[n]
+        # Convert the 0 or 1 label y_n to -1 or 1
+        y_n_prime = 1 if y_n == 1 else -1
+
+        old_alpha_n = np.copy(alpha[n]).item()
+
+        gamma = self._lambda * N * (1- w.dot(x_n) * y_n_prime)/ (np.linalg.norm(x_n)**2 + .00001) # avoid division by zero
+
+        gamma = min(1-old_alpha_n, gamma)
+        gamma = max(-old_alpha_n, gamma)
+        assert y_n in self.class_weights, f"y_n={y_n} not in class_weights={self.class_weights}"
+
+        alpha[n] += gamma
+        w += 1/(self._lambda* N) * gamma * self.class_weights[y_n] * y_n_prime * x_n
+        return w, alpha
+
+
+    def fit(self, x, y):
+        """ Fit the SVM to the dataset
+
+        Parameters:
+            x : np.ndarray(N, D) : features
+            y : np.ndarray(N) : labels
+
+        Returns:
+            tree : Node : root node of the tree
+        """
+        num_examples, num_features = x.shape
+        w = np.zeros(num_features)
+        alpha = np.zeros(num_examples)
+
+        for it in range(self.max_iters):
+            n = np.random.randint(0, num_examples - 1)
+            w, alpha = self.calculate_coordinate_update(x, y, alpha, w, n)
+        self.w = w
+
+    def predict(self, x):
+        """ Predict the labels for all samples in x
+
+        Parameters:
+            x : np.ndarray(N, D) : features
+
+        Returns:
+            y_pred : np.ndarray(N) : predicted labels
+        """
+        return (x @ self.w > 0).astype(int)
