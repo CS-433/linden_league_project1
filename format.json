@@ -232,7 +232,7 @@
         "2": "Yes, but female told only during pregnancy",
         "3": "No",
         "4": "Told borderline high or pre-hypertensive",
-        "7": "Don\u00b4t know/Not Sure",
+        "7": "Don´t know/Not Sure",
         "9": "Refused"
     },
     "BPMEDS": {
@@ -343,7 +343,7 @@
         "9": "Refused"
     },
     "EDUCA": {
-        "1": "Never attended school or only kindergarten",
+        "1": "Only kindergarten or never attended school",
         "2": "Grades 1 through 8 (Elementary)",
         "3": "Grades 9 through 11 (Some high school)",
         "4": "Grade 12 or GED (High school graduate)",
@@ -490,7 +490,7 @@
         "1": "Every day",
         "2": "Some days",
         "3": "Not at all",
-        "7": "Don\u00b4t Know/Not Sure",
+        "7": "Don´t Know/Not Sure",
         "9": "Refused"
     },
     "STOPSMK2": {
@@ -625,11 +625,11 @@
         "19": "Golf (with motorized cart)",
         "20": "Golf (without motorized cart)",
         "21": "Handball",
-        "22": "Hiking \u0096 cross-country",
+        "22": "Hiking  cross-country",
         "23": "Hockey",
         "24": "Horseback riding",
-        "25": "Hunting large game \u0096 deer, elk",
-        "26": "Hunting small game \u0096 quail",
+        "25": "Hunting large game  deer, elk",
+        "26": "Hunting small game  quail",
         "27": "Inline Skating",
         "28": "Jogging",
         "29": "Lacrosse",
@@ -647,7 +647,7 @@
         "41": "Rugby",
         "42": "Scuba diving",
         "43": "Skateboarding",
-        "44": "Skating \u0096 ice or roller",
+        "44": "Skating  ice or roller",
         "45": "Sledding, tobogganing",
         "46": "Snorkeling",
         "47": "Snow blowing",
@@ -712,11 +712,11 @@
         "19": "Golf (with motorized cart)",
         "20": "Golf (without motorized cart)",
         "21": "Handball",
-        "22": "Hiking \u0096 cross-country",
+        "22": "Hiking  cross-country",
         "23": "Hockey",
         "24": "Horseback riding",
-        "25": "Hunting large game \u0096 deer, elk",
-        "26": "Hunting small game \u0096 quail",
+        "25": "Hunting large game  deer, elk",
+        "26": "Hunting small game  quail",
         "27": "Inline Skating",
         "28": "Jogging",
         "29": "Lacrosse",
@@ -734,7 +734,7 @@
         "41": "Rugby",
         "42": "Scuba diving",
         "43": "Skateboarding",
-        "44": "Skating \u0096 ice or roller",
+        "44": "Skating  ice or roller",
         "45": "Sledding, tobogganing",
         "46": "Snorkeling",
         "47": "Snow blowing",
@@ -831,7 +831,7 @@
         "999999": "Refused"
     },
     "IMFVPLAC": {
-        "1": "A doctor\u00b4s office or health maintenance organization (HMO)",
+        "1": "A doctor´s office or health maintenance organization (HMO)",
         "2": "A health department",
         "3": "Another type of clinic or health center (Example: a community health center)",
         "4": "A senior, recreation, or community center",
@@ -840,7 +840,7 @@
         "7": "An emergency room",
         "8": "Workplace",
         "9": "Some other kind of place",
-        "10": "Received vaccination in Canada/Mexico (Volunteered \u0096 Do not read)",
+        "10": "Received vaccination in Canada/Mexico (Volunteered  Do not read)",
         "11": "A school",
         "77": "Don't know / Not sure",
         "99": "Refused"
@@ -923,7 +923,7 @@
         "1 - 76": "Number of times [76",
         "77": "Don't know/Not sure",
         "88": "None",
-        "98": "Never heard of \u0093A one C\u0094 test",
+        "98": "Never heard of A one C test",
         "99": "Refused"
     },
     "FEETCHK": {
@@ -1316,25 +1316,25 @@
         "2": "I can do most things I would like to do",
         "3": "I can do some things I would like to do",
         "4": "I can hardly do anything I would like to do",
-        "7": "Don\u00b4t know/Not Sure",
+        "7": "Don´t know/Not Sure",
         "9": "Refused"
     },
     "ARTHWGT": {
         "1": "Yes",
         "2": "No",
-        "7": "Don\u00b4t know/Not Sure",
+        "7": "Don´t know/Not Sure",
         "9": "Refused"
     },
     "ARTHEXER": {
         "1": "Yes",
         "2": "No",
-        "7": "Don\u00b4t know/Not Sure",
+        "7": "Don´t know/Not Sure",
         "9": "Refused"
     },
     "ARTHEDU": {
         "1": "Yes",
         "2": "No",
-        "7": "Don\u00b4t know/Not Sure",
+        "7": "Don´t know/Not Sure",
         "9": "Refused"
     },
     "TETANUS": {
@@ -1840,7 +1840,7 @@
     "_HISPANC": {
         "1": "Hispanic, Latino/a, or Spanish origin",
         "2": "Not of Hispanic, Latino/a, or Spanish origin",
-        "9": "Don\u00b4t Know, Refused or Missing"
+        "9": "Don´t Know, Refused or Missing"
     },
     "_RACE": {
         "1": "White only, non-Hispanic",
@@ -2048,7 +2048,7 @@
     "_FRTLT1": {
         "1": "Consumed fruit one or more times per day",
         "2": "Consumed fruit less than one time per day",
-        "9": "Don\u00b4t know, refused or missing values"
+        "9": "Don´t know, refused or missing values"
     },
     "_VEGLT1": {
         "1": "Consumed vegetables one or more times per day",
@@ -2203,20 +2203,20 @@
         "1": "Told have arthritis and have limited usual activities",
         "2": "Told have arthritis and no limited usual activities",
         "3": "Not told they have arthritis",
-        "9": "Don\u00b4t know, refused or missing usual activities limited"
+        "9": "Don´t know, refused or missing usual activities limited"
     },
     "_LMTWRK1": {
         "1": "Told have arthritis and have limited work",
         "2": "Told have arthritis and no limited work",
         "3": "Not told they have arthritis",
-        "9": "Don\u00b4t know, refused or missing work limited"
+        "9": "Don´t know, refused or missing work limited"
     },
     "_LMTSCL1": {
         "1": "Told have arthritis and social activities limited a lot",
         "2": "Told have arthritis and social activities limited a little",
         "3": "Told have arthritis and social activities not limited",
         "4": "Not told they have arthritis",
-        "9": "Don\u00b4t know, refused or missing social activities limited"
+        "9": "Don´t know, refused or missing social activities limited"
     },
     "_RFSEAT2": {
         "1": "Always or Almost Always Wear Seat Belt",
@@ -2244,3 +2244,4 @@
         "9": "Don't know/Not Sure/Refused"
     }
 }
+

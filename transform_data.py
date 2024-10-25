@@ -23,26 +23,25 @@ def map_columns(X, col_indices):
     with open(os.path.join("format.json"), "r") as f:
         data_format = json.load(f)
 
-    zero_values = ["None", "Not at any time", "Never", "No", "0"]
+    zero_values = ["None", "Not at any time", "Never"]
     missing_values = [
         "Refused",
-        "Not Sure",
         "Don't know",
-        "Missing",
-        "Not asked",
     ]
     for col, idx in col_indices.items():
         for value, description in data_format[col].items():
             arr = X[:, idx]
 
-            if description in zero_values:
-                print("Zeros: ", col)
-                mask = np.isin(arr, [value])
-                X[:, idx] = np.where(mask, 0, arr)
-            elif description in missing_values:
-                print("Missing: ", col)
-                mask = np.isin(arr, [value])
-                X[:, idx] = np.where(mask, np.nan, arr)
+            description = description.strip()
+            for zero_value in zero_values:
+                if description.startswith(zero_value):
+                    mask = np.isin(arr, [int(value)])
+                    X[:, idx] = np.where(mask, 0, arr)
+
+            for missing_value in missing_values:
+                if missing_value in description:
+                    mask = np.isin(arr, [int(value)])
+                    X[:, idx] = np.where(mask, np.nan, arr)
 
     return X
 
