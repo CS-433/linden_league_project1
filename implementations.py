@@ -1,8 +1,8 @@
 import numpy as np
 from helpers import batch_iter
-from logistic_regression import sigmoid, log_reg_grad, log_reg_loss, logistic_regression
 
 
+""" Utility functions """
 def loss_mse(y, tx, w):
     """Calculate the mean squared error loss.
 
@@ -30,7 +30,55 @@ def compute_gradient_linreg(y, tx, w):
     """
     return -1/len(y) * np.transpose(tx) @ (y - tx @ w) 
 
+def sigmoid(x):
+    """ Sigmoid function
 
+    Parameters:
+        x : {float, np.ndarray, int} : input
+
+    Returns:
+        {float, np.ndarray} : sigmoid(x)
+    """
+    return 1. / (1 + np.exp(-x))
+
+def log_reg_grad(y, tx, w):
+    """ Compute the gradient of the logistic regression loss
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features
+        w : np.ndarray(D) : weights
+
+    Returns:
+        grad : np.ndarray(D) : gradient
+    """
+    N = tx.shape[0]
+    probas = sigmoid(tx @ w) # (N)
+    grad = tx.T @ (probas - y) / N # (D)
+    return grad
+
+def log_reg_loss(y, tx, w):
+    """ Compute the logistic regression loss
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features
+        w : np.ndarray(D) : weights
+
+    Returns:
+        loss : float : loss value (negative log likelihood)
+    """
+    z = tx @ w # (N)
+
+    ### negative log likelihood (derived from -y*log(p) - (1-y)*log(1-p))
+    loss = np.sum(
+        np.log(1 + np.exp(z)) - y * z
+    ) / tx.shape[0]
+
+    return loss
+
+
+""" Main functions """
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """
     Perform the given number of iterations of stochastic gradient descent for linear regression using square mean error as loss.
@@ -95,6 +143,48 @@ def least_squares(y, tx):
     # Compute Mean Squared Error for the Loss
     return w, loss_mse(y, tx, w)
 
+def ridge_regression(y, tx, lambda_):
+    """
+    Computes the least squares solution to the linear regression problem with Ridge regularization.
+
+    Parameters:
+    y (np.ndarray): Target values, shape (n_samples,)
+    tx (np.ndarray): Feature matrix, shape (n_samples, n_features)
+    lambda_ (float): Regularization parameter. Set to 0 for no regularization.
+
+    Returns:
+    w (np.ndarray): Optimal weights, shape (n_features,)
+    loss (float): Mean Squared Error loss
+    """
+    n, d = tx.shape
+    w = np.linalg.solve(tx.T @ tx + lambda_ * 2*n * np.eye(d), tx.T @ y)
+
+    # Compute Mean Squared Error for the Loss
+    return w, loss_mse(y, tx, w)
+
+def logistic_regression(y, tx, initial_w, max_iters, gamma):
+    """ Logistic regression using gradient descent
+
+    Parameters:
+        y : np.ndarray(N) : labels (0 or 1)
+        tx : np.ndarray(N, D) : features
+        initial_w : np.ndarray(D) : initial weights
+        max_iters : int : maximum number of iterations
+        gamma : float : step size
+
+    Returns:
+        w : np.ndarray(D) : final weights
+        loss : float : final loss
+    """
+    w = initial_w
+    for _ in range(max_iters):
+        ### compute grad and update w
+        grad = log_reg_grad(y, tx, w)
+        w = w - gamma * grad
+    final_loss = log_reg_loss(y, tx, w)
+
+    return w, final_loss
+
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     """ Regularized logistic regression using gradient descent
 
@@ -118,23 +208,3 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     final_loss = log_reg_loss(y, tx, w) # don't include the regularization term
 
     return w, final_loss
-
-
-def ridge_regression(y, tx, lambda_):
-    """
-    Computes the least squares solution to the linear regression problem with Ridge regularization.
-
-    Parameters:
-    y (np.ndarray): Target values, shape (n_samples,)
-    tx (np.ndarray): Feature matrix, shape (n_samples, n_features)
-    lambda_ (float): Regularization parameter. Set to 0 for no regularization.
-
-    Returns:
-    w (np.ndarray): Optimal weights, shape (n_features,)
-    loss (float): Mean Squared Error loss
-    """
-    n, d = tx.shape
-    w = np.linalg.solve(tx.T @ tx + lambda_ * 2*n * np.eye(d), tx.T @ y)
-
-    # Compute Mean Squared Error for the Loss
-    return w, loss_mse(y, tx, w)
