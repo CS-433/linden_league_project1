@@ -106,18 +106,22 @@ def process_dataset(
 
     # Process numerical columns
     for col in numerical_columns:
+        if np.isnan(stats[col]["mean"]):
+            continue
         idx = col_indices[col]
         arr = X[:, idx]
         # Impute missing values with mean
         arr = np.where(np.isnan(arr), stats[col]["mean"], arr)
         # Standardize
-        arr = (arr - stats[col]["mean"]) / stats[col]["std"]
+        arr = (arr - stats[col]["mean"]) / (stats[col]["std"] + 1e-7)
         X_new.append(arr.reshape(-1, 1))
         new_col_indices[col] = col_idx
         col_idx += 1
 
     # Process categorical columns
     for col in categorical_columns:
+        if np.isnan(stats[col]["mode"]):
+            continue
         idx = col_indices[col]
         arr = X[:, idx]
         # Impute missing values with mode
@@ -300,7 +304,7 @@ def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max
 
     return x_pca, x_final_pca, cols_for_pca_map
 
-def get_all_data(cfg, pca_kwargs=None, verbose=True):
+def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
     """
     Load and clean data, apply PCA if specified, and save the processed data.
 
@@ -332,7 +336,7 @@ def get_all_data(cfg, pca_kwargs=None, verbose=True):
         except FileNotFoundError:
             if verbose: print("Clean data not found. Loading raw data and cleaning...")
 
-    ### load and clean data
+    ### load raw data
     if verbose: print("Loading raw data...")
     npy_loaded = load_npy_data(cfg["raw_data_path"])
     if npy_loaded:
@@ -342,8 +346,30 @@ def get_all_data(cfg, pca_kwargs=None, verbose=True):
         ### load data from csv
         x, x_final, y, ids, ids_final, col_idx_map = load_csv_data(cfg["raw_data_path"])
     if verbose: print(f"  Raw data: {x.shape=}, {x_final.shape=}")
+
+    ### select columns
+    if process_cols == "all":
+        numerical_columns, categorical_columns = get_all_columns()
+        binary_categorical_columns = get_all_binary_categorical_columns()
+    elif process_cols == "selected":
+        numerical_columns, categorical_columns = get_selected_columns()
+        binary_categorical_columns = get_selected_binary_categorical_columns()
+    else:
+        assert type(process_cols) in (float,int), "process_cols must be a percentage (int or float), or 'all', or 'selected'"
+        numerical_columns, categorical_columns, binary_categorical_columns = (
+            get_random_column_subset(process_cols)
+        )
+
+    ### clean data
     if verbose: print("Cleaning data...")
-    cleaned_x, cleaned_x_final, cleaned_col_idx_map = clean_data(x, x_final, col_idx_map)
+    cleaned_x, cleaned_x_final, cleaned_col_idx_map = clean_data(
+        x,
+        x_final,
+        col_idx_map,
+        numerical_columns=numerical_columns,
+        categorical_columns=categorical_columns,
+        binary_categorical_columns=binary_categorical_columns,
+    )
     if verbose: print(f"  Clean data: {cleaned_x.shape=}, {cleaned_x_final.shape=}")
 
     ### apply PCA on the remaining columns
@@ -380,7 +406,7 @@ def get_all_data(cfg, pca_kwargs=None, verbose=True):
 
     return x, x_final, y, ids, ids_final, col_idx_map, cleaned_col_idx_map
 
-def resave_csv_as_npy(data_path):
+def resave_csv_as_npy(data_path, transform_values=True):
     """
     Resave the data in the specified path as numpy arrays.
 
@@ -388,6 +414,13 @@ def resave_csv_as_npy(data_path):
         data_path (str): path to the data.
     """
     x, x_final, y, ids, ids_final, col_indices = load_csv_data(data_path)
+
+    ### transform specific values
+    if transform_values:
+        x = map_columns(x, col_indices)
+        x_final = map_columns(x_final, col_indices)
+
+    ### save
     for data, name in zip(
         [x, x_final, y, ids, ids_final],
         ['x', 'x_final', 'y', 'ids', 'ids_final']
