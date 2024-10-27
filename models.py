@@ -5,32 +5,91 @@ from utils import NegFn
 from collections import Counter
 
 
+class Ensemble:
+    """
+    Ensemble classifier
+
+    Parameters:
+        model_cls_list (list) : list of model classes
+        model_kwargs_list (list) : list of model kwargs
+        fit_frac_per_model_majority (float) : fraction of data to fit per model (majority class)
+        fit_frac_per_model_minority (float) : fraction of data to fit per model (minority class)
+    """
+    def __init__(self, model_cls_list, model_kwargs_list, fit_frac_per_model_majority=0.8, fit_frac_per_model_minority=1):
+        self.models = [model_cls(**model_kwargs) for model_cls, model_kwargs in zip(model_cls_list, model_kwargs_list)]
+        self.weights = np.ones(len(self.models)) / len(self.models)
+        self.fit_frac_per_model_majority = fit_frac_per_model_majority
+        self.fit_frac_per_model_minority = fit_frac_per_model_minority
+
+    def fit(self, x, y):
+        """ Fit the ensemble to the data
+
+        Parameters:
+            x : np.ndarray(N, D) : features
+            y : np.ndarray(N) : labels
+
+        Returns:
+            self : Ensemble : fitted ensemble instance
+        """
+        for model in self.models:
+            ### get idxs of majority and minority class
+            uniq_vals, counts = np.unique(y, return_counts=True)
+            majority_class = uniq_vals[np.argmax(counts)]
+            majority_idxs = np.where(y == majority_class)[0]
+            minority_idxs = np.where(y != majority_class)[0]
+
+            ### fit the model on a subset of the data
+            n_majority = int(self.fit_frac_per_model_majority * len(majority_idxs))
+            n_minority = int(self.fit_frac_per_model_minority * len(minority_idxs))
+            idxs = np.concatenate([np.random.choice(majority_idxs, n_majority), np.random.choice(minority_idxs, n_minority)])
+            idxs = np.random.default_rng(seed=0).permutation(idxs)
+            model.fit(x[idxs], y[idxs])
+        return self
+
+    def predict(self, x):
+        """ Predict the labels of the data
+
+        Parameters:
+            x : np.ndarray(N, D) : features
+
+        Returns:
+            y_preds : np.ndarray(N) : predicted labels
+        """
+        y_preds = np.array([model.predict_proba(x) for model in self.models])
+        y_preds = y_preds.T @ self.weights
+
+        return (y_preds > 0.5).astype(int)
+
+
 class LogisticRegression:
     """
     Logistic regression binary classifier
 
     Parameters:
-        init_w (np.ndarray(D) or None) : initial weights
+        init_w (np.ndarray(D), str or None) : initial weights (random, ones, zeros, or custom)
         predict_thres (float in range[0,1]) : threshold for binary classification
         max_iters (int) : maximum number of iterations
         gamma (float) : step size
         use_line_search (bool) : whether to use line search, gamma is ignored if True
+        reg_mul (float) : regularization multiplier
         class_weights (dict) : class weights as {class: weight}
         optim_algo (str) : optimization algorithm to use (gd, sgd, newton, snewton, lbfgs, slbfgs)
         optim_kwargs (dict) : optimization algorithm kwargs
+        update_callback (function) : callback function to call after each parameter update
         verbose (bool) : verbosity
     """
     def __init__(
         self,
         init_w=None,
         predict_thres=0.5,
-        max_iters=1000,
+        max_iters=300,
         gamma=1e-4,
         use_line_search=False,
         reg_mul=0,
         class_weights=None,
         optim_algo="gd",
         optim_kwargs=None,
+        update_callback=None,
         verbose=False,
     ):
         self.w = None
@@ -51,7 +110,12 @@ class LogisticRegression:
             "lbfgs": None,
             "slbfgs": None,
         }
+        self.update_callback = update_callback if update_callback else self.empty_callback
         self.verbose = verbose
+
+    def empty_callback(self, *args, **kwargs):
+        """ Empty callback function """
+        pass
 
     @staticmethod
     def sigmoid(x):
@@ -63,7 +127,7 @@ class LogisticRegression:
         Returns:
             {float, np.ndarray} : sigmoid(x)
         """
-        return 1. / (1 + np.exp(-x))
+        return 1. / (1 + np.exp(np.clip(-x, -50, 50))) # clipping needed for raw-data experiments
 
     def log_reg_loss(self, x, y, w, sample_weights=None):
         """ Compute the logistic regression loss
@@ -83,8 +147,8 @@ class LogisticRegression:
         if sample_weights is None:
             sample_weights = np.ones(y.shape[0])
         loss = np.sum(
-            (np.log(1 + np.exp(z)) - y * z) * sample_weights
-        ) / sample_weights.sum()
+            (np.log(1 + np.exp(np.clip(z, -50, 50))) - y * z) * sample_weights
+        ) / sample_weights.sum() # clipping needed for raw-data experiments
 
         ### add regularization
         if self.reg_mul > 0:
@@ -159,7 +223,8 @@ class LogisticRegression:
             loss = loss_fn(w=w)
             w_new = w + gamma * direction
             loss_new = loss_fn(w=w_new)
-            ### check Armijo–Goldstein condition
+
+            ### check stopping condition
             if loss_new <= loss + c * gamma * grad_fn(w=w).T @ direction:
                 break # step size found
 
@@ -169,7 +234,7 @@ class LogisticRegression:
                 break # prevent overflow
         return gamma
 
-    def _lbfgs(self, w, loss_fn, grad_fn, tol=5e-4, m=10, eps=1e-8):
+    def _lbfgs(self, w, loss_fn, grad_fn, tol=5e-4, m=10, eps=1e-8, update_callback_kwargs=None):
         """ L-BFGS optimization
 
         Parameters:
@@ -179,6 +244,7 @@ class LogisticRegression:
             tol : float : tolerance
             m : int : number of history updates to keep
             eps : float : small value to prevent division by zero
+            update_callback_kwargs : dict : kwargs for the update callback
 
         Returns:
             w : np.ndarray(D) : final weights
@@ -223,6 +289,7 @@ class LogisticRegression:
                 step_size = self.gamma
             s = step_size * direction
             w += s
+            self.update_callback(w=w, **(update_callback_kwargs or dict()))
 
             ### update gradient
             g_next = grad_fn(w=w)
@@ -243,6 +310,9 @@ class LogisticRegression:
             if np.linalg.norm(g, ord=2) < tol:
                 break
 
+        if k == self.max_iters - 1 and self.verbose:
+            print("Warning: L-BFGS did not converge")
+
         return w
 
     def _init_w(self, D):
@@ -255,11 +325,17 @@ class LogisticRegression:
             w : np.ndarray(D) : initial weights
 
         """
-        if self.init_w is not None:
+        if self.init_w == "random":
+            return np.random.normal(size=D) * 0.5
+        elif self.init_w == "ones":
+            return np.ones(D)
+        elif self.init_w == "zeros":
+            return np.zeros(D)
+        elif type(self.init_w) == np.ndarray:
             return self.init_w.copy()
         return np.zeros(D)
 
-    def _iter_optimize(self, w, dataloader, direction_fn, direction_fn_kwargs=None, use_lbfgs=False):
+    def _iter_optimize(self, w, dataloader, direction_fn, direction_fn_kwargs=None, use_lbfgs=False, update_callback_kwargs=None):
         """ Run iterative optimization
 
         Parameters:
@@ -268,6 +344,7 @@ class LogisticRegression:
             direction_fn : function : function to compute the direction
             direction_fn_kwargs : dict : kwargs for the direction function
             use_lbfgs : bool : whether to use L-BFGS
+            update_callback_kwargs : dict : kwargs for the update callback
 
         Returns:
             w : np.ndarray(D) : final weights
@@ -290,6 +367,7 @@ class LogisticRegression:
                         grad_fn=partial(self.log_reg_grad, x=x, y=y, sample_weights=self.sample_weights)
                     )
                 w += step_size * direction
+                self.update_callback(w=w, x=x, y=y, direction=direction, step_size=step_size, **(update_callback_kwargs or dict()))
             else:
                 w = self._lbfgs(
                     w=w,
@@ -298,6 +376,7 @@ class LogisticRegression:
                     tol=self.optim_kwargs.get("tol", 5e-4),
                     m=self.optim_kwargs.get("m", 30),
                     eps=self.optim_kwargs.get("eps", 1e-8),
+                    update_callback_kwargs={"x": x, "y": y, **(update_callback_kwargs or dict())}
                 )
         return w
 
@@ -325,8 +404,7 @@ class LogisticRegression:
             y : np.ndarray(N) : labels (0 or 1)
 
         Returns:
-            w : np.ndarray(D) : final weights
-            loss : float : final loss
+            self : LogisticRegression : fitted model instance
         """
         assert np.isnan(x).sum() == 0, "NaN values in features are not supported"
         assert np.isnan(y).sum() == 0, "NaN values in labels are not supported"
@@ -354,47 +432,49 @@ class LogisticRegression:
         ### run optimization
         epochs = self.optim_kwargs.get("epochs", 1)
         for ep in range(epochs):
-            dataloader = make_dataloader()
             self.w = self._iter_optimize(
                 w=self.w,
-                dataloader=dataloader,
+                dataloader=make_dataloader(),
                 direction_fn=self.direction_fn[self.optim_algo],
                 use_lbfgs="lbfgs" in self.optim_algo,
+                update_callback_kwargs={"epoch": ep, "model": self}
             )
             if self.verbose:
                 print(f"[Epoch {ep}/{epochs}] Loss: {self.log_reg_loss(x=x, y=y, w=self.w)}")
 
         return self
 
-    def predict(self, x):
+    def predict(self, x, w=None):
         """ Predict the labels of the data
 
         Parameters:
             x : np.ndarray(N, D) : features
+            w : np.ndarray(D) : weights (default to the fitted weights)
 
         Returns:
             y_pred : np.ndarray(N) : predicted labels
         """
-        if self.w is None:
+        if self.w is None and w is None:
             raise ValueError("Model has not been trained yet")
 
-        probas = LogisticRegression.sigmoid(x @ self.w)
+        probas = LogisticRegression.sigmoid(x @ self.w if w is None else x @ w)
         y_pred = (probas > self.predict_thres).astype(int)
         return y_pred
 
-    def predict_proba(self, x):
+    def predict_proba(self, x, w=None):
         """ Predict the probabilities of the data
 
         Parameters:
             x : np.ndarray(N, D) : features
+            w : np.ndarray(D) : weights (default to the fitted weights)
 
         Returns:
             probas : np.ndarray(N) : predicted probabilities
         """
-        if self.w is None:
+        if self.w is None and w is None:
             raise ValueError("Model has not been trained yet")
 
-        probas = LogisticRegression.sigmoid(x @ self.w)
+        probas = LogisticRegression.sigmoid(x @ self.w if w is None else x @ w)
         return probas
 
 
@@ -415,12 +495,14 @@ class DecisionTreeBinaryClassifier:
         min_samples_split=5,
         criterion="gini",
         class_weights=None,
+        eval_frac_of_features=1,
         eval_max_n_thresholds_per_split=None
     ):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.criterion = criterion
         self.class_weights = class_weights
+        self.eval_frac_of_features = eval_frac_of_features
         self.eval_max_n_thresholds_per_split = eval_max_n_thresholds_per_split # for faster building of the tree
         self.tree = None
 
@@ -531,14 +613,18 @@ class DecisionTreeBinaryClassifier:
         if N <= 1:
             return None, None
 
-        ### find the best split
+        ### find the feature and its threshold
         best_impurity = self._calculate_impurity(y)[0]
         best_feature, best_threshold = None, None
 
-        for feature in range(D):
+        ### get features to evaluate
+        features = np.random.choice(D, int(self.eval_frac_of_features * D), replace=False)
+
+        for feature in features:
             ### find the best threshold (split value) for the current feature
             thresholds = np.unique(x[:, feature])
-            if self.eval_max_n_thresholds_per_split is not None:
+            if self.eval_max_n_thresholds_per_split is not None \
+                and self.eval_max_n_thresholds_per_split > len(thresholds):
                 thresholds = thresholds[np.linspace(0, len(thresholds) - 1, self.eval_max_n_thresholds_per_split, dtype=int)]
             for threshold in thresholds:
                 x_left, x_right, y_left, y_right = self._split(x, y, feature, threshold)
@@ -663,6 +749,102 @@ class DecisionTreeBinaryClassifier:
         return np.array([self._predict(_x, self.tree) for _x in x])
 
 
+class SVM:
+    """
+    Linear Support Vector Machine (SVM) binary classifier
+
+    Parameters:
+        _lambda (float) : regularization parameter
+        max_iters (int) : maximum number of iterations
+        gamma (float) : step size
+        class_weights (dict) : class weights as {class: weight}
+    """
+    def __init__(self, _lambda=0.1, max_iters=10_000, gamma=.01, class_weights = {0: 1, 1: 4}):
+        self._lambda = _lambda
+        self.max_iters = max_iters
+        self.gamma = gamma
+        self.class_weights = class_weights
+
+    def calculate_coordinate_update(self, x, y, alpha, w, n):
+        """compute a coordinate update (closed form) for coordinate n.
+        Args:
+            y: the corresponding +1 or -1 labels, shape = (num_examples)
+            X: the dataset matrix, shape = (num_examples, num_features)
+            lambda_: positive scalar number
+            alpha: vector of dual coordinates, shape = (num_examples)
+            w: vector of primal parameters, shape = (num_features)
+            n: the coordinate to be updated
+        Returns:
+            w: updated vector of primal parameters, shape = (num_features)
+            alpha: updated vector of dual parameters, shape = (num_examples)
+        >>> y_test = np.array([1, -1])
+        >>> x_test = np.array([[1., 2., 3.], [4., 5., 6.]])
+        >>> w_test = np.array([-0.3, -0.3, -0.3])
+        >>> alpha_test = np.array([0.1, 0.1])
+        >>> calculate_coordinate_update(y_test, x_test, 1, alpha_test, w_test, 0)
+        (array([-0.1,  0.1,  0.3]), array([0.5, 0.1]))
+        """
+        # calculate the update of coordinate at index=n.
+        N = y.size
+        x_n, y_n = x[n], y[n]
+        # Convert the 0 or 1 label y_n to -1 or 1
+        y_n_prime = 1 if y_n == 1 else -1
+
+        old_alpha_n = np.copy(alpha[n]).item()
+
+        gamma = self._lambda * N * (1- w.dot(x_n) * y_n_prime)/ (np.linalg.norm(x_n)**2 + .00001) # avoid division by zero
+
+        gamma = min(1-old_alpha_n, gamma)
+        gamma = max(-old_alpha_n, gamma)
+        assert y_n in self.class_weights, f"y_n={y_n} not in class_weights={self.class_weights}"
+
+        alpha[n] += gamma
+        w += 1/(self._lambda* N) * gamma * self.class_weights[y_n] * y_n_prime * x_n
+        return w, alpha
+
+    def fit(self, x, y):
+        """ Fit the SVM to the dataset
+        Parameters:
+            x : np.ndarray(N, D) : features
+            y : np.ndarray(N) : labels
+        Returns:
+            self : SVM : fitted SVM instance
+        """
+        num_examples, num_features = x.shape
+        w = np.zeros(num_features)
+        alpha = np.zeros(num_examples)
+
+        for it in range(self.max_iters):
+            n = np.random.randint(0, num_examples - 1)
+            w, alpha = self.calculate_coordinate_update(x, y, alpha, w, n)
+        self.w = w
+        
+        return self
+
+    def predict(self, x):
+        """ Predict the labels for all samples in x
+        Parameters:
+            x : np.ndarray(N, D) : features
+        Returns:
+            y_pred : np.ndarray(N) : predicted labels
+        """
+        return (x @ self.w > 0).astype(int)
+
+    def predict_proba(self, x):
+        """ Predict the probabilities of the data
+        Parameters:
+            x : np.ndarray(N, D) : features
+        Returns:
+            probas : np.ndarray(N) : predicted probabilities
+        """
+        y_preds = x @ self.w
+
+        ### transform to [0, 1] range
+        probas = 1 / (1 + np.exp(-y_preds))
+
+        return probas
+
+
 class PCA:
     """
     Principal Component Analysis (PCA)
@@ -679,23 +861,26 @@ class PCA:
         self.min_explained_variance = min_explained_variance
         self.standardize = standardize
         self.mean_ = None
+        self.std_ = None
         self.components_ = None
         self.explained_variance_ = None
         self.explained_variance_ratio_ = None
 
-    def _standardize(self, x):
+    def _standardize(self, x, use_prev_stats=False):
         """ Standardize the dataset by removing the mean and scaling to unit variance
 
         Parameters:
             x : np.ndarray(N, D) : data matrix
+            use_prev_stats : bool : whether to use previous statistics
 
         Returns:
             x_standardized : np.ndarray(N, D) : standardized data
         """
-        self.mean_ = np.mean(x, axis=0)
-        x_centered = x - self.mean_
-        x_std = np.std(x_centered, axis=0, ddof=1)
-        x_standardized = x_centered / (x_std + 1e-7)
+        if not use_prev_stats:
+            self.mean_ = np.mean(x, axis=0)
+            self.std_ = np.std(x, axis=0)
+        assert self.mean_ is not None and self.std_ is not None, "Mean and std not computed"
+        x_standardized = (x - self.mean_) / (self.std_ + 1e-7)
         return x_standardized
 
     def _covariance_matrix(self, x):
@@ -721,7 +906,7 @@ class PCA:
         """
         ### standardize the data
         if self.standardize:
-            x = self._standardize(x)
+            x = self._standardize(x, use_prev_stats=False)
 
         ### compute the covariance matrix
         cov_matrix = self._covariance_matrix(x)
@@ -750,7 +935,7 @@ class PCA:
 
         return self
 
-    def transform(self, x):
+    def transform(self, x, use_prev_stats=True):
         """ Project the data onto the principal components
 
         Parameters:
@@ -761,7 +946,7 @@ class PCA:
         """
         ### standardize the data
         if self.standardize:
-            x = self._standardize(x)
+            x = self._standardize(x, use_prev_stats=use_prev_stats)
 
         ### project the data onto the principal components
         return x @ self.components_

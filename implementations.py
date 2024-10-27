@@ -191,7 +191,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     Parameters:
         y : np.ndarray(N) : labels (0 or 1)
         tx : np.ndarray(N, D) : features
-        lambda_ : float : regularization strength (L_r = \lambda * ||w||^2)
+        lambda_ : float : regularization strength (L_r = lambda * ||w||^2)
         initial_w : np.ndarray(D) : initial weights
         max_iters : int : maximum number of iterations
         gamma : float : step size

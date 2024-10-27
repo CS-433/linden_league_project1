@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pickle
+from copy import deepcopy
 
 from columns import (
     get_all_binary_categorical_columns,
@@ -83,6 +84,7 @@ def process_dataset(
     categorical_columns,
     multi_class_categorical_columns,
     col_indices,
+    only_impute=False,
 ):
     """
     Processes the dataset X by imputing missing values, standardizing numerical columns,
@@ -95,6 +97,7 @@ def process_dataset(
         categorical_columns (list): categorical column names
         multi_class_categorical_columns (list): multi-class categorical columns
         col_indices (dict): mapping of column names to indices for data
+        only_impute (bool): whether to only impute missing values
 
     Returns:
         X_array (np.ndarray): processed data
@@ -112,8 +115,10 @@ def process_dataset(
         arr = X[:, idx]
         # Impute missing values with mean
         arr = np.where(np.isnan(arr), stats[col]["mean"], arr)
-        # Standardize
-        arr = (arr - stats[col]["mean"]) / (stats[col]["std"] + 1e-7)
+
+        if not only_impute:
+            # Standardize
+            arr = (arr - stats[col]["mean"]) / (stats[col]["std"] + 1e-7)
         X_new.append(arr.reshape(-1, 1))
         new_col_indices[col] = col_idx
         col_idx += 1
@@ -127,7 +132,7 @@ def process_dataset(
         # Impute missing values with mode
         arr = np.where(np.isnan(arr), stats[col]["mode"], arr)
 
-        if col in multi_class_categorical_columns:
+        if col in multi_class_categorical_columns and not only_impute:
             unique_values = stats[col]["unique_values"]
             # One-hot encode
             for val in unique_values:
@@ -154,6 +159,8 @@ def clean_data(
     numerical_columns,
     categorical_columns,
     binary_categorical_columns,
+    only_impute=False,
+    skip_rule_transformations=False,
 ):
     """
     Cleans and processes the training and test datasets.
@@ -162,6 +169,8 @@ def clean_data(
         X_train (np.ndarray): training data
         X_test (np.ndarray): test data.
         col_indices (dict): mapping of column names to their indices in the data
+        only_impute (bool): whether to only impute missing values
+        skip_rule_transformations (bool): whether to skip rule-based transformations
 
     Returns:
         X_train (np.array): cleaned training data
@@ -175,10 +184,11 @@ def clean_data(
     ]
     stats = {}
 
-    X_train = transform_columns(
-        X_train, col_indices, binary_categorical_columns
-    )
-    X_test = transform_columns(X_test, col_indices, binary_categorical_columns)
+    if not skip_rule_transformations:
+        X_train = transform_columns(
+            X_train, col_indices, binary_categorical_columns
+        )
+        X_test = transform_columns(X_test, col_indices, binary_categorical_columns)
 
     stats = compute_statistics(
         X_train,
@@ -195,6 +205,7 @@ def clean_data(
         categorical_columns,
         multi_class_categorical_columns,
         col_indices,
+        only_impute=only_impute,
     )
     X_test_array, _ = process_dataset(
         X_test,
@@ -203,6 +214,7 @@ def clean_data(
         categorical_columns,
         multi_class_categorical_columns,
         col_indices,
+        only_impute=only_impute,
     )
 
     return X_train_array, X_test_array, columns
@@ -264,6 +276,7 @@ def load_clean_data(data_path=CLEAN_DATA_PATH):
         for name in ["x", "x_final", "y", "ids", "ids_final"]
     }
 
+
 def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max_frac_of_nan=0.8, min_explained_variance=0.7):
     """
     Apply PCA on the remaining columns of the data.
@@ -298,19 +311,22 @@ def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max
         x_final_pca[np.isnan(x_final_pca[:, col_idx]), col_idx] = mean_train
 
     ### transform all the data using PCA
-    pca = PCA(n_components=None, min_explained_variance=min_explained_variance).fit(x_pca)
-    x_pca, x_final_pca = pca.transform(x_pca), pca.transform(x_final_pca)
+    pca = PCA(n_components=None, min_explained_variance=min_explained_variance, standardize=True).fit(x_pca)
+    x_pca, x_final_pca = pca.transform(x_pca, use_prev_stats=True), pca.transform(x_final_pca, use_prev_stats=True)
     cols_for_pca_map = {f"pca_{i}": i for i in range(x_pca.shape[1])}
 
     return x_pca, x_final_pca, cols_for_pca_map
 
-def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
+
+def get_all_data(cfg, process_cols="selected", pca_kwargs=None, only_impute=False, skip_rule_transformations=False, verbose=True):
     """
     Load and clean data, apply PCA if specified, and save the processed data.
 
     Args:
         cfg : dict : configuration dictionary
         pca_kwargs : dict : kwargs for PCA
+        only_impute : bool : whether to only impute missing values
+        skip_rule_transformations : bool : whether to skip rule-based transformations
         verbose : bool : verbosity
 
     Returns:
@@ -369,14 +385,21 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
         numerical_columns=numerical_columns,
         categorical_columns=categorical_columns,
         binary_categorical_columns=binary_categorical_columns,
+        only_impute=only_impute,
+        skip_rule_transformations=skip_rule_transformations,
     )
     if verbose: print(f"  Clean data: {cleaned_x.shape=}, {cleaned_x_final.shape=}")
 
     ### apply PCA on the remaining columns
     if pca_kwargs is not None:
         if verbose: print("  Applying PCA on the remaining columns...")
+        _pca_kwargs = deepcopy(pca_kwargs)
+        cols_already_used = set(cleaned_col_idx_map.keys())
+        if "all_cols" in _pca_kwargs.keys():
+            cols_already_used = set()
+            del _pca_kwargs["all_cols"]
         pca_x, pca_x_final, pca_col_idx_map = get_pca_transformed_data(x=x, x_final=x_final,
-            col_idx_mapping=col_idx_map, cols_already_used=cleaned_col_idx_map.keys(), **pca_kwargs)
+            col_idx_mapping=col_idx_map, cols_already_used=cols_already_used, **_pca_kwargs)
         if verbose: print(f"  PCA data: {pca_x.shape=}, {pca_x_final.shape=}")
         x = np.concatenate([cleaned_x, pca_x], axis=1)
         x_final = np.concatenate([cleaned_x_final, pca_x_final], axis=1)
@@ -385,11 +408,17 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
         cleaned_col_idx_map.update(pca_col_idx_map)
     else:
         x, x_final = cleaned_x, cleaned_x_final
+    
     if verbose: print(f"  Preprocessed data: {x.shape=}, {x_final.shape=}")
 
     ### remap labels to 0, 1 from -1, 1
     if cfg["remap_labels_to_01"]:
         y = (y + 1) // 2
+
+    ### clip extreme values for non-imputation
+    # if not only_impute:
+    #     x = np.clip(x, -1e6, 1e6)
+    #     x_final = np.clip(x_final, -1e6, 1e6)
 
     ### save processed data used for training
     if verbose: print("Saving clean data...")
@@ -405,6 +434,7 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
         pickle.dump(cleaned_col_idx_map, f)
 
     return x, x_final, y, ids, ids_final, col_idx_map, cleaned_col_idx_map
+
 
 def resave_csv_as_npy(data_path, transform_values=True):
     """
@@ -429,6 +459,7 @@ def resave_csv_as_npy(data_path, transform_values=True):
 
     with open(os.path.join(data_path, "col_indices.pkl"), "wb") as f:
         pickle.dump(col_indices, f)
+
 
 def load_npy_data(data_path):
     """
