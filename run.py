@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 from copy import deepcopy
 
-from models import LogisticRegression, DecisionTreeBinaryClassifier, SVM, Ensemble
+from models import LogisticRegression, SVM
 from data_preprocessing import get_all_data, resave_csv_as_npy
 from helpers import create_csv_submission
 from utils import split_data, get_cross_val_scores, prep_hyperparam_search, now_str, accuracy, f1, seed_all
@@ -13,10 +13,11 @@ from utils import split_data, get_cross_val_scores, prep_hyperparam_search, now_
 cfg = {
     "raw_data_path": "data_raw",
     "clean_data_path": "data_clean",
-    "allow_load_clean_data": True,
+    "allow_load_clean_data": False,
     "remap_labels_to_01": True,
     "seed": 0,
     "scoring_fn": f1,
+    "eval_frac": 0.1,
     "train": {
         "retrain_selected_on_all_data": True,
         "cv": {
@@ -37,127 +38,33 @@ runs = {
     "data": {
         "All columns": {"process_cols": "all", "pca_kwargs": None},
         "Selected columns": {"process_cols": "selected", "pca_kwargs": None},
-        "Selected columns + Remaining columns PCA var > 0.99": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8}},
-        "Selected columns + All columns PCA var > 0.99": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8, "all_cols": True}},
-
-        "Raw": {"process_cols": "all", "pca_kwargs": None, "only_impute": True, "skip_rule_transformations": True},
-
-        # "70% of columns": {"process_cols": 70, "pca_kwargs": None},
-        # "35% of columns": {"process_cols": 35, "pca_kwargs": None},
-        # "Selected columns + Remaining columns PCA var > 0.8": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.8, "max_frac_of_nan": 0.8}},
-        # "Selected columns + All columns PCA var > 0.8": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.8, "max_frac_of_nan": 0.8, "all_cols": True}},
-        
-        # "70% of columns + PCA var > 0.6": {"process_cols": 70, "pca_kwargs": {"min_explained_variance": 0.6, "max_frac_of_nan": 0.8}},
-        # "35% of columns + PCA var > 0.6": {"process_cols": 35, "pca_kwargs": {"min_explained_variance": 0.6, "max_frac_of_nan": 0.8}},
-
-        # "70% of columns + PCA var > 0.85": {"process_cols": 70, "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 0.8}},
-        # "35% of columns + PCA var > 0.85": {"process_cols": 35, "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 0.8}},
-
-        # "70% of columns + PCA var > 0.99": {"process_cols": 70, "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8}},
-        # "35% of columns + PCA var > 0.99": {"process_cols": 35, "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8}},
+        "Selected columns + Remaining columns PCA": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1.}},
+        "Selected columns + All columns PCA": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1., "all_cols": True}},
+        "All columns PCA": {"process_cols": 0, "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1., "all_cols": True}},
+        "Raw": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False, "onehot_cat": False, "skip_rule_transformations": True},
+        "No one-hot encoding": {"process_cols": "all", "pca_kwargs": None, "onehot_cat": False},
+        "No standardization": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False},
     },
     "models": {
-        ### Table I
-        # "Logistic Regression": {
-        #     "model_cls": LogisticRegression,
-        #     "hyperparam_search": {
-        #         "gamma": [None],
-        #         "use_line_search": [True],
-        #         "optim_algo": ["lbfgs"],
-        #         "optim_kwargs": [{"epochs": 1}],
-        #         "class_weights": [{0: 1, 1: i} for i in [1, 2, 4, 6, 8]],
-        #         "reg_mul": [0, 1e-4, 1e-2, 1],
-        #         "verbose": [False],
-        #     },
-        # },
-        # "SVM": {
-        #     "model_cls": SVM,
-        #     "hyperparam_search": {
-        #         "_lambda": [1e-4, 1e-3, 1e-2, 1],
-        #         "class_weights": [{0: 1, 1: i} for i in [1, 2, 4, 6, 8]],
-        #     }
-        # },
-        
-        # "Decision Tree": {
-        #     "model_cls": DecisionTreeBinaryClassifier,
-        #     "hyperparam_search": {
-        #         "max_depth": [3, 5, 7],
-        #         "min_samples_split": [5],
-        #         "criterion": ["gini"],
-        #         "class_weights": [{0: 1, 1: i} for i in [1, 2, 3, 4, 5, 6]],
-        #         "eval_frac_of_features": [0.3],
-        #         "eval_max_n_thresholds_per_split": [4],
-        #     },
-        # },
-
-        # "Logistic Regression (baseline)": {
-        #     "model_cls": LogisticRegression,
-        #     "hyperparam_search": {
-        #         "gamma": [None],
-        #         "use_line_search": [True],
-        #         "optim_algo": ["gd"],
-        #         "optim_kwargs": [{"epochs": 200}],
-        #         "class_weights": [{0: 1, 1: 1}],
-        #         "reg_mul": [0],
-        #         "verbose": [False],
-        #     },
-        # },
-        "Logistic Regression (baseline)": {
+        "Logistic Regression": {
             "model_cls": LogisticRegression,
             "hyperparam_search": {
-                "gamma": [1, 5e-1, 1e-1, 5e-2, 1e-2],
-                "use_line_search": [False],
-                "optim_algo": ["gd"],
-                "optim_kwargs": [{"epochs": 150}, {"epochs": 250}],
-                "class_weights": [{0: 1, 1: 1}],
-                "reg_mul": [0],
+                "gamma": [None],
+                "use_line_search": [True],
+                "optim_algo": ["lbfgs"],
+                "optim_kwargs": [{"epochs": 1}],
+                "class_weights": [{0: 1, 1: i} for i in [1, 2, 4, 6, 8]],
+                "reg_mul": [0, 1e-4, 1e-2, 1],
                 "verbose": [False],
             },
         },
-        # "SVM (baseline)": {
-        #     "model_cls": SVM,
-        #     "hyperparam_search": {
-        #         "_lambda": [1e-4, 1e-3, 1e-2, 1],
-        #         "class_weights": [{0: 1, 1: 1}],
-        #     }
-        # },
-
-        # "Ensemble": {
-        #     "model_cls": Ensemble,
-        #     "hyperparam_search": [
-        #         # {
-        #         #     "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression],
-        #         #     "model_kwargs_list": [
-        #         #         {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 3.5}, "reg_mul": 1e-4, "verbose": False},
-        #         #         {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False},
-        #         #         {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4.5}, "reg_mul": 1e-4, "verbose": False},
-        #         #     ],
-        #         #     "fit_frac_per_model_majority": 1.,
-        #         # },
-        #         {
-        #             "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression],
-        #             "model_kwargs_list": [
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
-        #             ],
-        #             "fit_frac_per_model_majority": 1.,
-        #         },
-        #         {
-        #             "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression],
-        #             "model_kwargs_list": [
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-4, "verbose": False},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 3e-4, "verbose": False},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 8e-5, "verbose": False},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-5, "verbose": False},
-        #             ],
-        #             "fit_frac_per_model_majority": 1.,
-        #         },
-        #     ]
-        # },
+        "SVM": {
+            "model_cls": SVM,
+            "hyperparam_search": {
+                "_lambda": [1e-4, 1e-3, 1e-2, 1],
+                "class_weights": [{0: 1, 1: i} for i in [1, 2, 4, 6, 8]],
+            }
+        },
     }
 }
 
@@ -293,17 +200,24 @@ def main():
 
         ### get data
         seed_all(cfg["seed"])
-        x, x_final, y, ids, ids_final, col_idx_map, cleaned_col_idx_map = get_all_data(
+        (x_train, x_test), (y_train, y_test), (ids_train, ids_test), col_idx_map, cleaned_col_idx_map, (x_final, ids_final) = get_all_data(
             cfg=cfg,
-            process_cols=data_preproc_kwargs.get("process_cols", None),
+            process_cols=data_preproc_kwargs.get("process_cols", "all"),
             pca_kwargs=data_preproc_kwargs.get("pca_kwargs", None),
-            only_impute=data_preproc_kwargs.get("only_impute", False),
+            standardize_num=data_preproc_kwargs.get("standardize_num", True),
+            onehot_cat=data_preproc_kwargs.get("onehot_cat", True),
             skip_rule_transformations=data_preproc_kwargs.get("skip_rule_transformations", False),
             verbose=False,
         )
 
         ### get best model for this data
-        best_model_dict, results = get_best_model(model_runs=deepcopy(runs["models"]), x=x, y=y, verbose=1)
+        best_model_dict, results = get_best_model(model_runs=deepcopy(runs["models"]), x=x_train, y=y_train, verbose=1)
+
+        ### evaluate on test data
+        y_test_pred = best_model_dict["model"].predict(x_test)
+        best_model_dict["test_score"] = cfg["scoring_fn"](y_test, y_test_pred)
+
+        ### save if best so far
         if best_model_dict["val_score"] > best_data_model_comb_dict["val_score"]:
             best_data_model_comb_dict = deepcopy(best_model_dict)
             best_data_model_comb_dict["data_name"] = data_preproc_name
@@ -312,10 +226,9 @@ def main():
 
         ### save results
         if cfg["dir_name"] is not None:
+            results["__best__"] = best_model_dict
             with open(os.path.join(cfg["dir_name"], f"{data_preproc_name.replace(' ', '_')}__{best_model_dict['model_name'].replace(' ', '_')}__results.pkl"), "wb") as f:
                 pickle.dump(results, f)
-            with open(os.path.join(cfg["dir_name"], f"{data_preproc_name.replace(' ', '_')}__{best_model_dict['model_name'].replace(' ', '_')}__best.pkl"), "wb") as f:
-                pickle.dump(best_model_dict, f)
 
     ### print best data-model combination
     print("\n" + "=" * 20)
@@ -324,6 +237,7 @@ def main():
     print(f"  Model: {best_data_model_comb_dict['model_name']}")
     print(f"  Validation {cfg['scoring_fn'].__name__}: {best_data_model_comb_dict['val_score']:.4f}")
     print(f"  Hyperparameters: {' '.join([f'{k}={v}' for k, v in best_data_model_comb_dict['hyperparams'].items()])}")
+    print(f"  Test {cfg['scoring_fn'].__name__}: {best_data_model_comb_dict['test_score']:.4f}")
     print("=" * 20 + "\n")
 
     ### save best data-model combination
