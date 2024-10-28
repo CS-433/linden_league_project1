@@ -415,11 +415,6 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, only_impute=Fals
     if cfg["remap_labels_to_01"]:
         y = (y + 1) // 2
 
-    ### clip extreme values for non-imputation
-    # if not only_impute:
-    #     x = np.clip(x, -1e6, 1e6)
-    #     x_final = np.clip(x_final, -1e6, 1e6)
-
     ### save processed data used for training
     if verbose: print("Saving clean data...")
     os.makedirs(cfg["clean_data_path"], exist_ok=True)

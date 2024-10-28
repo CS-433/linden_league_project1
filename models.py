@@ -325,8 +325,10 @@ class LogisticRegression:
             w : np.ndarray(D) : initial weights
 
         """
-        if self.init_w == "random":
-            return np.random.normal(size=D) * 0.5
+        if self.init_w == "normal":
+            return np.random.normal(size=D) * 5e-2
+        elif self.init_w == "uniform":
+            return np.random.uniform(size=D, low=-np.sqrt(1/D), high=np.sqrt(1/D))
         elif self.init_w == "ones":
             return np.ones(D)
         elif self.init_w == "zeros":

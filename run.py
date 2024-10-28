@@ -35,15 +35,12 @@ if cfg["train"].get("cv", None) is not None:
 ### data-model combinations to run
 runs = {
     "data": {
-        # "All columns": {"process_cols": "all", "pca_kwargs": None},
-        # "Selected columns": {"process_cols": "selected", "pca_kwargs": None},
-        # "Selected columns + Remaining columns PCA var > 0.99": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8}},
-        # "Selected columns + All columns PCA var > 0.99": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8, "all_cols": True}},
+        "All columns": {"process_cols": "all", "pca_kwargs": None},
+        "Selected columns": {"process_cols": "selected", "pca_kwargs": None},
+        "Selected columns + Remaining columns PCA var > 0.99": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8}},
+        "Selected columns + All columns PCA var > 0.99": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8, "all_cols": True}},
 
         "Raw": {"process_cols": "all", "pca_kwargs": None, "only_impute": True, "skip_rule_transformations": True},
-        
-        # "All columns PCA": {"process_cols": "all", "pca_kwargs": {"min_explained_variance": 0.99, "max_frac_of_nan": 0.8}},
-        
 
         # "70% of columns": {"process_cols": 70, "pca_kwargs": None},
         # "35% of columns": {"process_cols": 35, "pca_kwargs": None},
@@ -81,19 +78,6 @@ runs = {
         #     }
         # },
         
-        "Logistic Regression": {
-            "model_cls": LogisticRegression,
-            "hyperparam_search": {
-                "gamma": [None],
-                "use_line_search": [True],
-                "optim_algo": ["lbfgs"],
-                "optim_kwargs": [{"epochs": 1}],
-                "class_weights": [{0: 1, 1: 4}],
-                "reg_mul": [1e-4],
-                "verbose": [False],
-            },
-        },
-
         # "Decision Tree": {
         #     "model_cls": DecisionTreeBinaryClassifier,
         #     "hyperparam_search": {
@@ -118,6 +102,18 @@ runs = {
         #         "verbose": [False],
         #     },
         # },
+        "Logistic Regression (baseline)": {
+            "model_cls": LogisticRegression,
+            "hyperparam_search": {
+                "gamma": [1, 5e-1, 1e-1, 5e-2, 1e-2],
+                "use_line_search": [False],
+                "optim_algo": ["gd"],
+                "optim_kwargs": [{"epochs": 150}, {"epochs": 250}],
+                "class_weights": [{0: 1, 1: 1}],
+                "reg_mul": [0],
+                "verbose": [False],
+            },
+        },
         # "SVM (baseline)": {
         #     "model_cls": SVM,
         #     "hyperparam_search": {
@@ -129,43 +125,36 @@ runs = {
         # "Ensemble": {
         #     "model_cls": Ensemble,
         #     "hyperparam_search": [
+        #         # {
+        #         #     "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression],
+        #         #     "model_kwargs_list": [
+        #         #         {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 3.5}, "reg_mul": 1e-4, "verbose": False},
+        #         #         {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False},
+        #         #         {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4.5}, "reg_mul": 1e-4, "verbose": False},
+        #         #     ],
+        #         #     "fit_frac_per_model_majority": 1.,
+        #         # },
         #         {
-        #             "model_cls_list": [SVM, LogisticRegression, LogisticRegression],
+        #             "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression],
         #             "model_kwargs_list": [
-        #                 {"_lambda": 1e-2, "class_weights": {0: 1, 1: 8}},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 0, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "random"},
-        #             ],
-        #             "fit_frac_per_model_majority": 0.8,
-        #         },
-        #         {
-        #             "model_cls_list": [SVM, LogisticRegression, LogisticRegression],
-        #             "model_kwargs_list": [
-        #                 {"_lambda": 1e-2, "class_weights": {0: 1, 1: 8}},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 0, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "random"},
-        #             ],
-        #             "fit_frac_per_model_majority": 1,
-        #         },
-        #         {
-        #             "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression],
-        #             "model_kwargs_list": [
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-4, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-5, "verbose": False, "init_w": "random"},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "normal"},
         #             ],
         #             "fit_frac_per_model_majority": 1.,
         #         },
         #         {
         #             "model_cls_list": [LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression, LogisticRegression],
         #             "model_kwargs_list": [
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-4, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-5, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 0, "verbose": False, "init_w": "random"},
-        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 0, "verbose": False, "init_w": "random"},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-4, "verbose": False},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 3e-4, "verbose": False},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 1e-4, "verbose": False},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 8e-5, "verbose": False},
+        #                 {"gamma": None, "use_line_search": True, "optim_algo": "lbfgs", "optim_kwargs": {"epochs": 1}, "class_weights": {0: 1, 1: 4}, "reg_mul": 5e-5, "verbose": False},
         #             ],
-        #             "fit_frac_per_model_majority": .9,
+        #             "fit_frac_per_model_majority": 1.,
         #         },
         #     ]
         # },
