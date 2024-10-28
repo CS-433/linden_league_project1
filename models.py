@@ -776,10 +776,9 @@ class SVM:
         gamma (float) : step size
         class_weights (dict) : class weights as {class: weight}
     """
-    def __init__(self, _lambda=0.1, max_iters=10_000, gamma=.01, class_weights = {0: 1, 1: 4}):
+    def __init__(self, _lambda=0.1, max_iters=10_000, class_weights = {0: 1, 1: 4}):
         self._lambda = _lambda
         self.max_iters = max_iters
-        self.gamma = gamma
         self.class_weights = class_weights
     def calculate_coordinate_update(self, x, y, alpha, w, n):
         """compute a coordinate update (closed form) for coordinate n.
@@ -830,16 +829,18 @@ class SVM:
             y : np.ndarray(N) : labels
 
         Returns:
-            tree : Node : root node of the tree
+            svm : SVM : fitted SVM instance
         """
         num_examples, num_features = x.shape
         w = np.zeros(num_features)
         alpha = np.zeros(num_examples)
 
         for it in range(self.max_iters):
-            n = np.random.randint(0, num_examples - 1)
+            n = np.random.randint(0, num_examples)
             w, alpha = self.calculate_coordinate_update(x, y, alpha, w, n)
         self.w = w
+
+        return self
 
     def predict(self, x):
         """ Predict the labels for all samples in x

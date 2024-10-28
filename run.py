@@ -24,7 +24,7 @@ cfg = {
             "shuffle": True,
         },
         # "holdout": {
-        #     "split_frac": 0.8,
+        #     "split_frac": 0.2,
         #     "seed": 0,
         # },
     },
