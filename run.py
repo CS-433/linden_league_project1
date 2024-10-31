@@ -18,6 +18,7 @@ cfg = {
     "seed": 0,
     "scoring_fn": f1,
     "eval_frac": 0.1,
+    "retrain_on_all_data_after_eval": True,
     "train": {
         "retrain_selected_on_all_data": True,
         "cv": {
@@ -217,7 +218,7 @@ def main():
 
     ### resave raw data as npy for faster loading
     print("Saving the raw data into .npy files for faster loading...")
-    # resave_csv_as_npy(data_path=cfg["raw_data_path"], transform_values=True)
+    resave_csv_as_npy(data_path=cfg["raw_data_path"], transform_values=True)
 
     ### find best [data processing]-[model] combination
     best_data_model_comb_dict = {"best_model": None, "best_data": None, "val_score": -1}
@@ -275,6 +276,30 @@ def main():
     print(f"  Hyperparameters: {' '.join([f'{k}={v}' for k, v in best_data_model_comb_dict['hyperparams'].items()])}")
     print(f"  Test {cfg['scoring_fn'].__name__}: {best_data_model_comb_dict['test_score']:.4f}")
     print("=" * 20 + "\n")
+
+    ### retrain on all data
+    if cfg["retrain_on_all_data_after_eval"]:
+        print("Retraining on all data...")
+
+        ### get all data
+        seed_all(cfg["seed"])
+        (x_train, x_test), (y_train, y_test), (_, _), _, cleaned_col_idx_map, (x_final, ids_final) = get_all_data(
+            cfg=cfg,
+            process_cols=best_data_model_comb_dict["data_kwargs"].get("process_cols", "all"),
+            pca_kwargs=best_data_model_comb_dict["data_kwargs"].get("pca_kwargs", None),
+            standardize_num=best_data_model_comb_dict["data_kwargs"].get("standardize_num", True),
+            onehot_cat=best_data_model_comb_dict["data_kwargs"].get("onehot_cat", True),
+            skip_rule_transformations=best_data_model_comb_dict["data_kwargs"].get("skip_rule_transformations", False),
+            verbose=False,
+        )
+        best_data_model_comb_dict["final_data"] = (x_final, ids_final, cleaned_col_idx_map)
+
+        ### concatenate train and test data
+        x_train = np.concatenate([x_train, x_test], axis=0)
+        y_train = np.concatenate([y_train, y_test], axis=0)
+
+        ### retrain
+        best_data_model_comb_dict["model"] = best_data_model_comb_dict["model"].__class__(**best_data_model_comb_dict["hyperparams"]).fit(x_train, y_train)
 
     ### save best data-model combination
     if cfg["dir_name"] is not None:
