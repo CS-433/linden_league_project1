@@ -43,6 +43,8 @@ The main pipeline is implemented in the `run.py` file. To run the pipeline, you 
 python run.py
 ```
 
+The current pipeline evaluates all the models on all the data preprocessing configurations trying all of the combinations of hyperparametrs. **This takes several hours on a laptop!** If you want to run the pipeline faster, you can comment out some of the data preprocessing configurations or models in the `runs` dictionary in the `run.py` file. You can also narrow down the search space of hyperparameters.
+
 ### Configuration
 The configuration of the pipeline is done at the top of the `run.py` file, in a global dictionary called `cfg`: 
 ```python
