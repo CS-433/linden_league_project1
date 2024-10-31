@@ -2,28 +2,28 @@
 
 Code for the first project of the Machine Learning Course (CS-433) at EPFL.
 
+In this document, we provide instructions on how to run this code, and information about how the project is organized. Please refer to the report in `report.pdf` for a detailed description of the project, motivation of the choices we made, and the results we obtained.
+
 ## Summary
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installing](#installing)
-- [Implementation of ML methods](#implementation-of-ml-methods)
-- [Medical dataset](#medical-dataset)
-  - [How to run the pipeline](#how-to-run-the-pipeline)
-  - [Configuration](#configuration)
-- [Authors](#authors)
+- [CS-433: Class Project 1](#cs-433-class-project-1)
+  - [Summary](#summary)
+  - [Getting Started](#getting-started)
+  - [Implementation of ML methods](#implementation-of-ml-methods)
+  - [Medical dataset](#medical-dataset)
+    - [How to run the pipeline](#how-to-run-the-pipeline)
+    - [Configuration](#configuration)
+  - [Authors](#authors)
 
 ## Getting Started
-
-### Prerequisites
-
-...
-
-### Installing
-
-...
+1. Make sure `python` is installed on your system. We used `v3.11.8` for development.
+2. Install all the packages listed in `requirements.txt` (`numpy` and `matplotlib`). For example, if you use pip for package management, you can do so with:
+```bash
+pip install -r requirements.txt
+```
+3. Place the raw data (`x_train.csv`, `y_train.csv` and `x_test.csv` files) in the `data_raw` folder. You can download the data [here](https://www.cdc.gov/brfss/annual_data/2015/files/LLCP2015XPT.zip).
 
 ## Implementation of ML methods
-The implementation of the ML methods is done in the `implementations.py` file. The methods are implemented as functions with the interface specified by the project description. The methods implemented are:
+The implementation of the ML methods is in the `implementations.py` file. The methods are implemented as functions with the interface specified by the project description. The methods implemented are:
 - `mean_squared_error_gd(y, tx, initial_w, max_iters, gamma)`: Linear regression using gradient descent
 - `mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma)`: Linear regression using stochastic gradient descent
 - `least_squares(y, tx)`: Least squares regression using normal equations
@@ -35,12 +35,15 @@ The implementation of the ML methods is done in the `implementations.py` file. T
 
 The original data is expected to be stored in the `data_raw` folder. This includes the `x_train.csv`, `y_train.csv` and `x_test.csv` files. The pipeline we use for the medical dataset preprocesses this raw data, and stores the preprocessed data in the `data_clean` folder, along with checkpoints and results. If you want to change these paths (`data_raw` and `data_clean`), you can do so in the configuration as explained below.
 
+
 ### How to run the pipeline
 
 The main pipeline is implemented in the `run.py` file. To run the pipeline, you can simply run the following command:
 ```bash
 python run.py
 ```
+
+The current pipeline evaluates all the models on all the data preprocessing configurations trying all of the combinations of hyperparametrs. **This takes several hours on a laptop!** If you want to run the pipeline faster, you can comment out some of the data preprocessing configurations or models in the `runs` dictionary in the `run.py` file. You can also narrow down the search space of hyperparameters.
 
 ### Configuration
 The configuration of the pipeline is done at the top of the `run.py` file, in a global dictionary called `cfg`: 

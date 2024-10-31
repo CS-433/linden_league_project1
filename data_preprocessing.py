@@ -1,6 +1,8 @@
 import os
+import json
 import numpy as np
 import pickle
+from copy import deepcopy
 
 from columns import (
     get_all_binary_categorical_columns,
@@ -11,15 +13,54 @@ from columns import (
 )
 from helpers import load_csv_data
 
-from parser_helpers import create_preprocessing_parser
-from transform_data import map_columns
 from models import PCA
 
 
 ### Define paths
 RAW_DATA_PATH = "data_raw"
 CLEAN_DATA_PATH = "data_clean"
+FORMAT_PATH = "format.json"
 
+
+
+def map_columns(X, col_indices):
+    """
+    Maps specific values in the dataset to 0 or NaN based on a the BRFSS Codebook.
+
+    Args:
+        X (np.ndarray): input dataset
+        col_indices (dict): mapping of column names to their respective indices in the dataset
+
+    Returns:
+        X (np.ndarray): modified dataset with values replaced by either 0 or NaN according to the format
+    """
+
+    X = X.copy()
+
+    with open(FORMAT_PATH, "r") as f:
+        data_format = json.load(f)
+
+    zero_values = ["None", "Not at any time", "Never"]
+    missing_values = [
+        "Refused",
+        "Don't know",
+    ]
+    for col, idx in col_indices.items():
+        for value, description in data_format[col].items():
+            arr = X[:, idx]
+
+            description = description.strip()
+            for zero_value in zero_values:
+                if description.startswith(zero_value):
+                    mask = np.isin(arr, [int(value)])
+                    X[:, idx] = np.where(mask, 0, arr)
+
+            for missing_value in missing_values:
+                if missing_value in description:
+                    mask = np.isin(arr, [int(value)])
+                    X[:, idx] = np.where(mask, np.nan, arr)
+
+    return X
 
 
 def compute_mode(arr):
@@ -83,6 +124,8 @@ def process_dataset(
     categorical_columns,
     multi_class_categorical_columns,
     col_indices,
+    standardize_num=True,
+    onehot_cat=True,
 ):
     """
     Processes the dataset X by imputing missing values, standardizing numerical columns,
@@ -95,6 +138,8 @@ def process_dataset(
         categorical_columns (list): categorical column names
         multi_class_categorical_columns (list): multi-class categorical columns
         col_indices (dict): mapping of column names to indices for data
+        standardize_num (bool): whether to standardize numerical columns
+        onehot_cat (bool): whether to one-hot encode categorical columns
 
     Returns:
         X_array (np.ndarray): processed data
@@ -112,8 +157,11 @@ def process_dataset(
         arr = X[:, idx]
         # Impute missing values with mean
         arr = np.where(np.isnan(arr), stats[col]["mean"], arr)
+
         # Standardize
-        arr = (arr - stats[col]["mean"]) / (stats[col]["std"] + 1e-7)
+        if standardize_num:
+            arr = (arr - stats[col]["mean"]) / (stats[col]["std"] + 1e-7)
+
         X_new.append(arr.reshape(-1, 1))
         new_col_indices[col] = col_idx
         col_idx += 1
@@ -127,7 +175,7 @@ def process_dataset(
         # Impute missing values with mode
         arr = np.where(np.isnan(arr), stats[col]["mode"], arr)
 
-        if col in multi_class_categorical_columns:
+        if col in multi_class_categorical_columns and onehot_cat:
             unique_values = stats[col]["unique_values"]
             # One-hot encode
             for val in unique_values:
@@ -142,7 +190,7 @@ def process_dataset(
             col_idx += 1
 
     # Stack the columns to form a 2D array
-    X_array = np.hstack(X_new)
+    X_array = np.hstack(X_new) if len(X_new) > 0 else np.empty((X.shape[0], 0))
 
     return X_array, new_col_indices
 
@@ -154,6 +202,10 @@ def clean_data(
     numerical_columns,
     categorical_columns,
     binary_categorical_columns,
+    standardize_num=True,
+    onehot_cat=True,
+    skip_rule_transformations=False,
+    eval_split_idx=None,
 ):
     """
     Cleans and processes the training and test datasets.
@@ -162,6 +214,13 @@ def clean_data(
         X_train (np.ndarray): training data
         X_test (np.ndarray): test data.
         col_indices (dict): mapping of column names to their indices in the data
+        numerical_columns (list): numerical column names
+        categorical_columns (list): categorical column names
+        binary_categorical_columns (list): binary categorical column names
+        standardize_num (bool): whether to standardize numerical columns
+        onehot_cat (bool): whether to one-hot encode categorical columns
+        skip_rule_transformations (bool): whether to skip rule-based transformations
+        eval_split_idx (int): index to split the training data for evaluation (only affects statistics computation)
 
     Returns:
         X_train (np.array): cleaned training data
@@ -175,13 +234,14 @@ def clean_data(
     ]
     stats = {}
 
-    X_train = transform_columns(
-        X_train, col_indices, binary_categorical_columns
-    )
-    X_test = transform_columns(X_test, col_indices, binary_categorical_columns)
+    if not skip_rule_transformations:
+        X_train = transform_columns(
+            X_train, col_indices, binary_categorical_columns
+        )
+        X_test = transform_columns(X_test, col_indices, binary_categorical_columns)
 
     stats = compute_statistics(
-        X_train,
+        X_train[:eval_split_idx] if eval_split_idx else X_train,
         col_indices,
         numerical_columns,
         categorical_columns,
@@ -195,6 +255,8 @@ def clean_data(
         categorical_columns,
         multi_class_categorical_columns,
         col_indices,
+        standardize_num=standardize_num,
+        onehot_cat=onehot_cat,
     )
     X_test_array, _ = process_dataset(
         X_test,
@@ -203,6 +265,8 @@ def clean_data(
         categorical_columns,
         multi_class_categorical_columns,
         col_indices,
+        standardize_num=standardize_num,
+        onehot_cat=onehot_cat,
     )
 
     return X_train_array, X_test_array, columns
@@ -264,7 +328,8 @@ def load_clean_data(data_path=CLEAN_DATA_PATH):
         for name in ["x", "x_final", "y", "ids", "ids_final"]
     }
 
-def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max_frac_of_nan=0.8, min_explained_variance=0.7):
+
+def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, eval_split_idx=None, max_frac_of_nan=0.8, min_explained_variance=0.8):
     """
     Apply PCA on the remaining columns of the data.
 
@@ -273,6 +338,7 @@ def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max
         x_final : np.ndarray(N, D) : final data matrix
         col_idx_mapping : dict : mapping of column names to indices
         cols_already_used : set : columns already used in the model
+        eval_split_idx : int : index to split the training data for evaluation
         max_frac_of_nan : float : maximum fraction of nans in a column
         min_explained_variance : float : minimum explained variance by the PCA
 
@@ -293,24 +359,28 @@ def get_pca_transformed_data(x, x_final, col_idx_mapping, cols_already_used, max
 
     ### fill nans with mean from train
     for col_idx in range(x_pca.shape[1]):
-        mean_train = np.nanmean(x_pca[:, col_idx])
+        mean_train = np.nanmean(x_pca[:eval_split_idx, col_idx])
         x_pca[np.isnan(x_pca[:, col_idx]), col_idx] = mean_train
         x_final_pca[np.isnan(x_final_pca[:, col_idx]), col_idx] = mean_train
 
     ### transform all the data using PCA
-    pca = PCA(n_components=None, min_explained_variance=min_explained_variance).fit(x_pca)
-    x_pca, x_final_pca = pca.transform(x_pca), pca.transform(x_final_pca)
+    pca = PCA(n_components=None, min_explained_variance=min_explained_variance, standardize=True).fit(x_pca[:eval_split_idx])
+    x_pca, x_final_pca = pca.transform(x_pca, use_prev_stats=True), pca.transform(x_final_pca, use_prev_stats=True)
     cols_for_pca_map = {f"pca_{i}": i for i in range(x_pca.shape[1])}
 
     return x_pca, x_final_pca, cols_for_pca_map
 
-def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
+
+def get_all_data(cfg, process_cols="all", pca_kwargs=None, standardize_num=True, onehot_cat=True, skip_rule_transformations=False, verbose=True):
     """
     Load and clean data, apply PCA if specified, and save the processed data.
 
     Args:
         cfg : dict : configuration dictionary
         pca_kwargs : dict : kwargs for PCA
+        standardize_num : bool : whether to standardize numerical columns
+        onehot_cat : bool : whether to one-hot encode categorical columns
+        skip_rule_transformations : bool : whether to skip rule-based transformations
         verbose : bool : verbosity
 
     Returns:
@@ -360,6 +430,13 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
             get_random_column_subset(process_cols)
         )
 
+    ### shuffle train/eval data
+    shuffle_idxs = np.random.default_rng(seed=cfg["seed"]).permutation(x.shape[0])
+    x, y, ids = x[shuffle_idxs], y[shuffle_idxs], ids[shuffle_idxs]
+
+    ### get data split idx for train/test
+    eval_split_idx = int(x.shape[0] * (1 - cfg.get("eval_frac", 0)))
+
     ### clean data
     if verbose: print("Cleaning data...")
     cleaned_x, cleaned_x_final, cleaned_col_idx_map = clean_data(
@@ -369,15 +446,26 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
         numerical_columns=numerical_columns,
         categorical_columns=categorical_columns,
         binary_categorical_columns=binary_categorical_columns,
+        standardize_num=standardize_num,
+        onehot_cat=onehot_cat,
+        skip_rule_transformations=skip_rule_transformations,
+        eval_split_idx=eval_split_idx,
     )
     if verbose: print(f"  Clean data: {cleaned_x.shape=}, {cleaned_x_final.shape=}")
 
-    ### apply PCA on the remaining columns
+    ### apply PCA
     if pca_kwargs is not None:
-        if verbose: print("  Applying PCA on the remaining columns...")
+        if verbose: print("  Applying PCA...")
+        _pca_kwargs = deepcopy(pca_kwargs)
+        cols_already_used = set(cleaned_col_idx_map.keys())
+        if "all_cols" in _pca_kwargs.keys():
+            cols_already_used = set()
+            del _pca_kwargs["all_cols"]
         pca_x, pca_x_final, pca_col_idx_map = get_pca_transformed_data(x=x, x_final=x_final,
-            col_idx_mapping=col_idx_map, cols_already_used=cleaned_col_idx_map.keys(), **pca_kwargs)
+            col_idx_mapping=col_idx_map, cols_already_used=cols_already_used, eval_split_idx=eval_split_idx, **_pca_kwargs)
         if verbose: print(f"  PCA data: {pca_x.shape=}, {pca_x_final.shape=}")
+
+        ### combine
         x = np.concatenate([cleaned_x, pca_x], axis=1)
         x_final = np.concatenate([cleaned_x_final, pca_x_final], axis=1)
         for k in pca_col_idx_map: # update the column index mapping
@@ -385,6 +473,7 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
         cleaned_col_idx_map.update(pca_col_idx_map)
     else:
         x, x_final = cleaned_x, cleaned_x_final
+    
     if verbose: print(f"  Preprocessed data: {x.shape=}, {x_final.shape=}")
 
     ### remap labels to 0, 1 from -1, 1
@@ -403,8 +492,22 @@ def get_all_data(cfg, process_cols="selected", pca_kwargs=None, verbose=True):
         pickle.dump(col_idx_map, f)
     with open(os.path.join(cfg["clean_data_path"], "cleaned_col_idx_map.pkl"), "wb") as f:
         pickle.dump(cleaned_col_idx_map, f)
+    with open(os.path.join(cfg["clean_data_path"], "meta.json"), "w") as f:
+        json.dump({
+            "numerical_columns": numerical_columns,
+            "categorical_columns": categorical_columns,
+            "binary_categorical_columns": binary_categorical_columns,
+            "eval_split_idx": eval_split_idx,
+        }, f)
 
-    return x, x_final, y, ids, ids_final, col_idx_map, cleaned_col_idx_map
+    return (
+        (x[:eval_split_idx], x[eval_split_idx:]),
+        (y[:eval_split_idx], y[eval_split_idx:]),
+        (ids[:eval_split_idx], ids[eval_split_idx:]),
+        col_idx_map, cleaned_col_idx_map,
+        (x_final, ids_final)
+    )
+
 
 def resave_csv_as_npy(data_path, transform_values=True):
     """
@@ -430,6 +533,7 @@ def resave_csv_as_npy(data_path, transform_values=True):
     with open(os.path.join(data_path, "col_indices.pkl"), "wb") as f:
         pickle.dump(col_indices, f)
 
+
 def load_npy_data(data_path):
     """
     Load data from the specified path.
@@ -447,65 +551,3 @@ def load_npy_data(data_path):
         return *data, col_indices
     except FileNotFoundError:
         return None
-
-
-def main():
-    """
-    Main function to load data, clean it, and save the processed data.
-    """
-    parser = create_preprocessing_parser()
-
-    args = parser.parse_args()
-    if args.features == "fraction" and args.fraction_percentage is None:
-        parser.error("--features fraction requires --fraction_percentage.")
-
-    if args.features == "all":
-        numerical_columns, categorical_columns = get_all_columns()
-        binary_categorical_columns = get_all_binary_categorical_columns()
-    elif args.features == "selected":
-        numerical_columns, categorical_columns = get_selected_columns()
-        binary_categorical_columns = get_selected_binary_categorical_columns()
-    else:
-        numerical_columns, categorical_columns, binary_categorical_columns = (
-            get_random_column_subset(args.fraction_percentage)
-        )
-
-    x_train, x_test, y_train, train_ids, test_ids, col_indices = load_csv_data(
-        RAW_DATA_PATH
-    )
-
-    print("Before cleaning")
-    print("x_train: ", x_train.shape)
-    print("x_test: ", x_test.shape)
-
-    x_train, x_test, col_indices = clean_data(
-        x_train,
-        x_test,
-        col_indices,
-        numerical_columns=numerical_columns,
-        categorical_columns=categorical_columns,
-        binary_categorical_columns=binary_categorical_columns,
-    )
-
-    print("After cleaning")
-    print("x_train: ", x_train.shape)
-    print("x_test: ", x_test.shape)
-
-    if not os.path.exists(CLEAN_DATA_PATH):
-        os.makedirs(CLEAN_DATA_PATH)
-
-    # Save processed data
-    for data, name in zip(
-        [x_train, x_test, y_train, train_ids, test_ids],
-        ["x_train", "x_test", "y_train", "train_ids", "test_ids"],
-    ):
-        np.save(os.path.join(CLEAN_DATA_PATH, name + ".npy"), data)
-
-    header = ", ".join([col for col in col_indices])
-
-    with open(os.path.join(CLEAN_DATA_PATH, "header.txt"), "w") as f:
-        f.write(header)
-
-
-if __name__ == "__main__":
-    main()
