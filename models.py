@@ -4,6 +4,62 @@ from helpers import batch_iter
 from utils import NegFn
 
 
+class RidgeRegression:
+    """
+    Ridge Regression model using the closed-form least squares solution with L2 regularization.
+
+    Parameters:
+        reg_mul (float) : regularization multiplier (lambda parameter)
+        class_weights (dict) : class weights as {class: weight}
+    """
+
+    def __init__(self, reg_mul=0.0, class_weights=None):
+        self.reg_mul = reg_mul
+        self.class_weights = class_weights
+        self.w = None
+
+    def fit(self, x, y):
+        """
+        Fit the Ridge regression model to the data using the closed-form solution.
+
+        Parameters:
+            x : np.ndarray of shape (n_samples, n_features) : Feature matrix
+            y : np.ndarray of shape (n_samples,) : Target values (0 or 1)
+        """
+        ### set sample weights from class weights
+        sample_weights = np.ones(y.shape[0])
+        if self.class_weights is not None:
+            sample_weights = np.array([self.class_weights[yi] for yi in y])
+
+        ### normal equation with sample weights omega: w = (X^T @ (omega * X) + lambda * I)^-1 X^T @ (omega * y)
+        try:
+            self.w = np.linalg.solve(
+                x.T @ (sample_weights[...,None] * x) + self.reg_mul * np.eye(x.shape[1]), 
+                x.T @ (sample_weights * y)
+            )
+        except np.linalg.LinAlgError:
+            print("[RidgeRegression] Singular matrix: could not compute the closed-form solution. Setting weights to zeros.")
+            self.w = np.zeros(x.shape[1])
+        return self
+
+    def predict(self, x, binarize=True):
+        """
+        Predict target values using the fitted model.
+
+        Parameters:
+            x : np.ndarray of shape (n_samples, n_features) : Feature matrix
+            binarize : bool : whether to binarize the predictions to 0 or 1
+
+        Returns:
+            np.ndarray : Predicted values
+        """
+        if self.w is None:
+            raise ValueError("Model has not been trained yet")
+
+        if binarize:
+            return (x @ self.w > 0.5).astype(int)
+        return x @ self.w
+
 
 class LogisticRegression:
     """
@@ -461,20 +517,6 @@ class SVM:
             y_pred : np.ndarray(N) : predicted labels
         """
         return (x @ self.w > 0).astype(int)
-
-    def predict_proba(self, x):
-        """ Predict the probabilities of the data
-        Parameters:
-            x : np.ndarray(N, D) : features
-        Returns:
-            probas : np.ndarray(N) : predicted probabilities
-        """
-        y_preds = x @ self.w
-
-        ### transform to [0, 1] range
-        probas = 1 / (1 + np.exp(-y_preds))
-
-        return probas
 
 
 class PCA:

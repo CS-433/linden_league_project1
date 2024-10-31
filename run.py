@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 from copy import deepcopy
 
-from models import LogisticRegression, SVM
+from models import LogisticRegression, SVM, RidgeRegression
 from data_preprocessing import get_all_data, resave_csv_as_npy
 from helpers import create_csv_submission
 from utils import split_data, get_cross_val_scores, prep_hyperparam_search, now_str, accuracy, f1, seed_all
@@ -41,8 +41,8 @@ runs = {
         "Selected columns + Remaining columns PCA": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1.}},
         "Selected columns + All columns PCA": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1., "all_cols": True}},
         "All columns PCA": {"process_cols": 0, "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1., "all_cols": True}},
-        "Raw": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False, "onehot_cat": False, "skip_rule_transformations": True},
         "No one-hot encoding": {"process_cols": "all", "pca_kwargs": None, "onehot_cat": False},
+        "Raw": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False, "onehot_cat": False, "skip_rule_transformations": True},
         "No standardization": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False},
     },
     "models": {
@@ -53,7 +53,7 @@ runs = {
                 "use_line_search": [True],
                 "optim_algo": ["lbfgs"],
                 "optim_kwargs": [{"epochs": 1}],
-                "class_weights": [{0: 1, 1: i} for i in [1, 2, 4, 6, 8]],
+                "class_weights": [{0: 1, 1: i} for i in [2, 4, 6, 8]],
                 "reg_mul": [0, 1e-4, 1e-2, 1],
                 "verbose": [False],
             },
@@ -62,8 +62,41 @@ runs = {
             "model_cls": SVM,
             "hyperparam_search": {
                 "_lambda": [1e-4, 1e-3, 1e-2, 1],
-                "class_weights": [{0: 1, 1: i} for i in [1, 2, 4, 6, 8]],
+                "class_weights": [{0: 1, 1: i} for i in [2, 4, 6, 8]],
             }
+        },
+        "Ridge Regression": {
+            "model_cls": RidgeRegression,
+            "hyperparam_search": {
+                "reg_mul": [0, 1e-4, 1e-2, 1, 1e8, 1e12], # large values for experiments with raw data
+                "class_weights": [{0: 1, 1: i} for i in [2, 4, 6, 8]],
+            },
+        },
+        "Logistic Regression (no CWs)": {
+            "model_cls": LogisticRegression,
+            "hyperparam_search": {
+                "gamma": [None],
+                "use_line_search": [True],
+                "optim_algo": ["lbfgs"],
+                "optim_kwargs": [{"epochs": 1}],
+                "class_weights": [{0: 1, 1: 1}],
+                "reg_mul": [0, 1e-4, 1e-2, 1],
+                "verbose": [False],
+            },
+        },
+        "SVM (no CWs)": {
+            "model_cls": SVM,
+            "hyperparam_search": {
+                "_lambda": [1e-4, 1e-3, 1e-2, 1],
+                "class_weights": [{0: 1, 1: 1}],
+            }
+        },
+        "Ridge Regression (no CWs)": {
+            "model_cls": RidgeRegression,
+            "hyperparam_search": {
+                "reg_mul": [0, 1e-4, 1e-2, 1, 1e8, 1e12], # large values for experiments with raw data
+                "class_weights": [{0: 1, 1: 1}],
+            },
         },
     }
 }
@@ -168,13 +201,6 @@ def get_best_model(model_runs, x, y, verbose=1):
             best["val_score"] = run_dict["val_score"]
             best["hyperparams"] = run_dict["hyperparams"]
 
-    ### logging
-    if verbose > 1:
-        print("  " + "\n" + "-" * 3 + f" Best: {best['model_name']} " + "-" * 3)
-        print(f"  Hyperparameters: {' '.join([f'{k}={v}' for k, v in best['hyperparams'].items()])}")
-        print(f"  Validation {cfg['scoring_fn'].__name__}: {best['val_score']:.4f}")
-        print("  " + "-" * (14 + len(best['model_name'])))
-
     return best, model_runs
 
 
@@ -191,7 +217,7 @@ def main():
 
     ### resave raw data as npy for faster loading
     print("Saving the raw data into .npy files for faster loading...")
-    resave_csv_as_npy(data_path=cfg["raw_data_path"], transform_values=True)
+    # resave_csv_as_npy(data_path=cfg["raw_data_path"], transform_values=True)
 
     ### find best [data processing]-[model] combination
     best_data_model_comb_dict = {"best_model": None, "best_data": None, "val_score": -1}
@@ -211,11 +237,21 @@ def main():
         )
 
         ### get best model for this data
-        best_model_dict, results = get_best_model(model_runs=deepcopy(runs["models"]), x=x_train, y=y_train, verbose=1)
+        best_model_dict, results = get_best_model(model_runs=deepcopy(runs["models"]), x=x_train, y=y_train, verbose=0)
 
-        ### evaluate on test data
-        y_test_pred = best_model_dict["model"].predict(x_test)
-        best_model_dict["test_score"] = cfg["scoring_fn"](y_test, y_test_pred)
+        ### evaluate on test data and log
+        for i, (model_name, model_dict) in enumerate(results.items()):
+            y_test_pred = model_dict["model"].predict(x_test)
+            model_dict["test_score"] = cfg["scoring_fn"](y_test, y_test_pred)
+            if model_name == best_model_dict["model_name"]:
+                best_model_dict["test_score"] = model_dict["test_score"]
+
+            print("  " + "-" * 3 + f" {model_name} " + "-" * 3)
+            print(f"  Hyperparameters: {' '.join([f'{k}={v}' for k, v in model_dict['hyperparams'].items()])}")
+            print(f"  Validation {cfg['scoring_fn'].__name__}: {model_dict['val_score']:.4f}")
+            print(f"  Test {cfg['scoring_fn'].__name__}: {model_dict['test_score']:.4f}")
+            if i == len(results) - 1:
+                print("  " + "-" * (14 + len(model_name)))
 
         ### save if best so far
         if best_model_dict["val_score"] > best_data_model_comb_dict["val_score"]:
