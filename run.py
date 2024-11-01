@@ -43,10 +43,24 @@ runs = {
         "Selected columns + All columns PCA": {"process_cols": "selected", "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1., "all_cols": True}},
         "All columns PCA": {"process_cols": 0, "pca_kwargs": {"min_explained_variance": 0.85, "max_frac_of_nan": 1., "all_cols": True}},
         "No one-hot encoding": {"process_cols": "all", "pca_kwargs": None, "onehot_cat": False},
-        "Raw": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False, "onehot_cat": False, "skip_rule_transformations": True},
         "No standardization": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False},
+
+        # "Raw": {"process_cols": "all", "pca_kwargs": None, "standardize_num": False, "onehot_cat": False, "skip_rule_transformations": True}, # not used in the final submission
     },
     "models": {
+        # "Logistic Regression": { ### AICrowd submission
+        #     "model_cls": LogisticRegression,
+        #     "hyperparam_search": {
+        #         "gamma": [None],
+        #         "use_line_search": [True],
+        #         "optim_algo": ["lbfgs"],
+        #         "optim_kwargs": [{"epochs": 1}],
+        #         "class_weights": [{0: 1, 1: 4}],
+        #         "reg_mul": [0],
+        #         "verbose": [False],
+        #     },
+        # },
+
         "Logistic Regression": {
             "model_cls": LogisticRegression,
             "hyperparam_search": {
