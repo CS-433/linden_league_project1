@@ -23,7 +23,16 @@ pip install -r requirements.txt
 ```
 3. Place the raw data (`x_train.csv`, `y_train.csv` and `x_test.csv` files) in the `data_raw` folder. You can download the data [here](https://www.cdc.gov/brfss/annual_data/2015/files/LLCP2015XPT.zip).
 
-## Implementation of ML methods
+### Where do you find what?
+- `run.py` contains the full pipeline, which performs all of our experiments.
+- `models.py` contains the implementation of SVM, Logistic Regression, Ridge Regression and PCA
+- `columns.py` contains the result of manual interpretation of the dataset features; features (names of columns) are separated into categorical and numerical
+- `analysis.ipynb` generates our figures
+- `data_preprocessing.py` is where we transform the raw dataset into all versions we compare (see columns of Table 1)
+- `helpers.py` is a modified version of the file with the same name provided for the ML labs, and it contains functions for reading the csv files of the raw dataset, as well as functions to create the AICrowd submission
+
+
+#### Implementation of ML methods
 The implementation of the ML methods is in the `implementations.py` file. The methods are implemented as functions with the interface specified by the project description. The methods implemented are:
 - `mean_squared_error_gd(y, tx, initial_w, max_iters, gamma)`: Linear regression using gradient descent
 - `mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma)`: Linear regression using stochastic gradient descent
