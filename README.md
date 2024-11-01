@@ -143,7 +143,9 @@ To generate the submission we used for AICrowd, comment out or remove all the da
     },
 },
 ```
-After running `python run.py`, the pipeline will train the model on all the data and store the predictions in the `data_clean/runs/<current-timestep>` folder (default path; `<current-timestep>` will be a timestamp of the run). The predictions will be stored in a file ending with `submission.csv` file in the same folder (for logistic regression this would be `Logistic_Regression_submission.csv`). This file can be submitted to AICrowd.
+The `cfg` configuration should be kept as is (seed=0).
+
+After running `python run.py` (ignore numpy warnings), the pipeline will train the model on all the data and store the predictions in the `data_clean/runs/<current-timestep>` folder (default path; `<current-timestep>` will be a timestamp of the run). The predictions will be stored in a file ending with `submission.csv` file in the same folder (for logistic regression this would be `Logistic_Regression_submission.csv`). This file can be submitted to AICrowd.
 
 ## Authors
   - **Andrej Kotevski** [[link]](https://people.epfl.ch/andrej.kotevski/?lang=en)
