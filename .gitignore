@@ -1,9 +1,10 @@
 *.pdf
 
 data_raw/**
-!data_raw/dataset.zip
+!data_raw/.gitkeep
 data_transformed/**
 data_clean/**
+!data_clean/.gitkeep
 knn_pred/**
 results/
 
