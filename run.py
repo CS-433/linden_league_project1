@@ -2,6 +2,8 @@ import os
 import numpy as np
 import pickle
 from copy import deepcopy
+import warnings
+warnings.filterwarnings("ignore")
 
 from models import LogisticRegression, SVM, RidgeRegression
 from data_preprocessing import get_all_data, resave_csv_as_npy
